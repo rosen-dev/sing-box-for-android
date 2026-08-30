@@ -19,6 +19,7 @@ object RuleSetManager {
 
     fun ensureRuleSets(context: Context) {
         val rulesDir = getRulesDir(context)
+        var updatedCount = 0
         for (fileName in GatewayConstants.ALL_RULE_SET_FILES) {
             val targetFile = File(rulesDir, fileName)
             val assetPath = "$ASSETS_RULES_DIR/$fileName"
@@ -29,12 +30,14 @@ object RuleSetManager {
                         FileOutputStream(targetFile).use { output ->
                             output.write(assetBytes)
                         }
-                        Log.i(GatewayConstants.TAG, "Synchronized rule set: $fileName")
+                        updatedCount++
+                        Log.i(GatewayConstants.TAG, "[RuleSetManager] 同步规则集文件: $fileName (${assetBytes.size} bytes)")
                     }
                 }
             } catch (e: Exception) {
-                Log.e(GatewayConstants.TAG, "Failed to copy asset $assetPath to ${targetFile.absolutePath}", e)
+                Log.e(GatewayConstants.TAG, "[RuleSetManager] 同步规则集文件失败: $assetPath -> ${targetFile.absolutePath}", e)
             }
         }
+        Log.i(GatewayConstants.TAG, "[RuleSetManager] 4 大 RuleSet 规则集校验完毕 (就绪目录: ${rulesDir.absolutePath})")
     }
 }
