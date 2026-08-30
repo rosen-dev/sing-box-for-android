@@ -57,8 +57,9 @@ object RuleSetManager {
                     if (trimmed.startsWith("- ")) {
                         trimmed = trimmed.substring(2).trim()
                     }
-                    // 剥离行末注释与引号
-                    val cleanLine = trimmed.split("#")[0].trim().trim(''', '"')
+                    // 剥离行末注释与前后引号
+                    val rawClean = trimmed.split("#")[0].trim()
+                    val cleanLine = rawClean.removeSurrounding("'").removeSurrounding("\"").trim()
                     if (cleanLine.isEmpty()) continue
 
                     val parts = cleanLine.split(",").map { it.trim() }.filter { it.isNotEmpty() }
