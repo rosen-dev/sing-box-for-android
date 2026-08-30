@@ -411,6 +411,29 @@ fun ProfilesCard(
                     },
                 )
 
+                ListItem(
+                    modifier = Modifier.clickable(enabled = false) {},
+                    leadingContent = {
+                        Icon(
+                            imageVector = Icons.Default.QrCodeScanner,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.38f),
+                        )
+                    },
+                    headlineContent = {
+                        Text(
+                            text = stringResource(R.string.profile_add_scan_qr_code),
+                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f),
+                        )
+                    },
+                    supportingContent = {
+                        Text(
+                            text = stringResource(R.string.scan_qr_code_description),
+                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.38f),
+                        )
+                    },
+                )
+
 
 
                 ListItem(
