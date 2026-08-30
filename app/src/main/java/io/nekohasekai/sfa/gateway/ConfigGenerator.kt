@@ -8,56 +8,100 @@ import java.io.File
 
 object ConfigGenerator {
 
-    private val NON_PHYSICAL_TYPES = setOf(
-        "selector",
-        "urltest",
-        "direct",
-        "block",
-        "dns",
-        "anytls",
-        "bypass",
-        "drop",
-    )
+    private val NON_PHYSICAL_TYPES = setOf("selector", "urltest", "direct", "block", "dns")
 
     fun generate(context: Context, original: JSONObject): String {
         val result = JSONObject()
 
-        // 1. 继承或默认 log
-        val logObj = original.optJSONObject("log") ?: JSONObject().apply {
-            put("level", "info")
-            put("timestamp", true)
+        // 1. 继承 log (若有)
+        original.optJSONObject("log")?.let {
+            result.put("log", it)
         }
-        result.put("log", logObj)
 
-        // 2. 继承 dns (若有)
-        original.optJSONObject("dns")?.let {
-            result.put("dns", it)
-        }
+        // 2. 注入/优化极速双分流 DNS 引擎 (解决测速延迟高与节点域名解析慢问题)
+        result.put("dns", buildFastDNS(original))
 
         // 3. 继承 ntp (若有)
         original.optJSONObject("ntp")?.let {
             result.put("ntp", it)
         }
 
-        // 4. 构建 inbounds (保留原有并追加 8899 mixed 端口)
+        // 4. 重构 inbounds (保留原生并追加 8899 mixed 旁路由端口)
         result.put("inbounds", buildInbounds(original))
 
-        // 5. 构建 outbounds (提取实体节点 -> 唯一 PROXY 组)
+        // 5. 重构 outbounds (归并物理节点 -> 唯一 PROXY 选择器组)
         result.put("outbounds", buildOutbounds(original))
 
-        // 6. 自定义 6 层路由与本地 RuleSet 绑定
+        // 6. 自定义 5 层路由规则与本地 RuleSet 绑定
         result.put("route", buildRoute(context))
 
-        // 7. 继承 experimental (确保 Clash API 开启以便 SFA 切换 PROXY 组的节点)
+        // 7. 继承 experimental (确保 Clash API 可用)
         val experimental = original.optJSONObject("experimental") ?: JSONObject()
         if (!experimental.has("clash_api")) {
             experimental.put("clash_api", JSONObject().put("external_controller", "127.0.0.1:9090"))
         }
+        if (!experimental.has("cache_file")) {
+            experimental.put("cache_file", JSONObject().put("enabled", true))
+        }
         result.put("experimental", experimental)
 
         val finalConfigStr = result.toString(2)
-        Log.d(GatewayConstants.TAG, "[ConfigGenerator] 生成的完整配置 JSON:\n$finalConfigStr")
+        Log.d(GatewayConstants.TAG, "[ConfigGenerator] 生成的配置 JSON:\n$finalConfigStr")
         return finalConfigStr
+    }
+
+    private fun buildFastDNS(original: JSONObject): JSONObject {
+        val dns = JSONObject()
+        val servers = JSONArray()
+
+        // 1. 节点域名与国内直连极速 DNS (阿里/腾讯直连，5ms 秒解析)
+        servers.put(JSONObject().apply {
+            put("tag", "dns-direct")
+            put("address", "223.5.5.5")
+            put("detour", GatewayConstants.TAG_DIRECT)
+            put("strategy", "prefer_ipv4")
+        })
+
+        // 2. 远端防污染 DNS (Cloudflare DoH / Google)
+        servers.put(JSONObject().apply {
+            put("tag", "dns-remote")
+            put("address", "https://1.1.1.1/dns-query")
+            put("address_resolver", "dns-direct")
+            put("strategy", "prefer_ipv4")
+        })
+
+        // 3. 阻断 DNS
+        servers.put(JSONObject().apply {
+            put("tag", "dns-block")
+            put("address", "rcode://success")
+        })
+
+        dns.put("servers", servers)
+
+        val dnsRules = JSONArray()
+        // 节点服务器域名解析直连
+        dnsRules.put(JSONObject().apply {
+            put("outbound", JSONArray().put("any").put(GatewayConstants.TAG_DIRECT))
+            put("server", "dns-direct")
+        })
+        // 直连规则走国内 DNS
+        dnsRules.put(JSONObject().apply {
+            put("rule_set", GatewayConstants.TAG_RULESET_DIRECT)
+            put("server", "dns-direct")
+        })
+        // 黑名单走阻断 DNS
+        dnsRules.put(JSONObject().apply {
+            put("rule_set", GatewayConstants.TAG_RULESET_BLACKLIST)
+            put("server", "dns-block")
+        })
+
+        dns.put("rules", dnsRules)
+        dns.put("final", "dns-remote")
+        dns.put("strategy", "prefer_ipv4")
+        dns.put("independent_cache", true)
+
+        Log.i(GatewayConstants.TAG, "[ConfigGenerator] 注入高性能双分流 DNS 引擎 (direct: 223.5.5.5, independent_cache: true)")
+        return dns
     }
 
     private fun buildInbounds(original: JSONObject): JSONArray {
@@ -68,7 +112,6 @@ object ConfigGenerator {
                 val item = originalInbounds.optJSONObject(i) ?: continue
                 val tag = item.optString("tag")
                 val port = item.optInt("listen_port", -1)
-                // 避免重复添加 8899 入站
                 if (tag == GatewayConstants.GATEWAY_MIXED_TAG || port == GatewayConstants.GATEWAY_MIXED_PORT) {
                     continue
                 }
@@ -76,7 +119,6 @@ object ConfigGenerator {
             }
         }
 
-        // 追加 0.0.0.0:8899 mixed 入站
         val mixedInbound = JSONObject().apply {
             put("type", "mixed")
             put("tag", GatewayConstants.GATEWAY_MIXED_TAG)
@@ -84,7 +126,7 @@ object ConfigGenerator {
             put("listen_port", GatewayConstants.GATEWAY_MIXED_PORT)
         }
         inboundsArray.put(mixedInbound)
-        Log.i(GatewayConstants.TAG, "[ConfigGenerator] 已配置入站: 包含网关混合端口 0.0.0.0:${GatewayConstants.GATEWAY_MIXED_PORT}")
+        Log.i(GatewayConstants.TAG, "[ConfigGenerator] 入站重构: 开启网关混合端口 0.0.0.0:${GatewayConstants.GATEWAY_MIXED_PORT}")
 
         return inboundsArray
     }
@@ -117,7 +159,7 @@ object ConfigGenerator {
             }
         }
 
-        // 1. 创建唯一主 PROXY 选择组
+        // 1. 构建唯一的 PROXY 选择器组
         val proxySelector = JSONObject().apply {
             put("type", "selector")
             put("tag", GatewayConstants.TAG_PROXY)
@@ -125,14 +167,13 @@ object ConfigGenerator {
             if (physicalNodeTags.isNotEmpty()) {
                 physicalNodeTags.forEach { tagsArray.put(it) }
             } else {
-                // 无实体节点，默认回退 block (防止直接裸连泄露)
                 tagsArray.put(GatewayConstants.TAG_BLOCK)
             }
             put("outbounds", tagsArray)
         }
         outboundsArray.put(proxySelector)
 
-        // 2. 补齐规范化 direct 和 block 出口
+        // 2. 规范化 direct 与 block
         outboundsArray.put(JSONObject().apply {
             put("type", "direct")
             put("tag", GatewayConstants.TAG_DIRECT)
@@ -142,13 +183,13 @@ object ConfigGenerator {
             put("tag", GatewayConstants.TAG_BLOCK)
         })
 
-        // 3. 追加特殊出口 (如 dns-out)
+        // 3. 追加特殊出站 (如 dns-out)
         specialOutbounds.forEach { outboundsArray.put(it) }
 
-        // 4. 追加全部实体物理节点
+        // 4. 追加全体物理节点
         physicalNodes.forEach { outboundsArray.put(it) }
 
-        Log.i(GatewayConstants.TAG, "[ConfigGenerator] 成功提取物理代理节点共 ${physicalNodeTags.size} 个至 [${GatewayConstants.TAG_PROXY}] 代理组: $physicalNodeTags")
+        Log.i(GatewayConstants.TAG, "[ConfigGenerator] 成功提取节点共 ${physicalNodeTags.size} 个至 [${GatewayConstants.TAG_PROXY}] 组")
 
         return outboundsArray
     }
@@ -157,14 +198,14 @@ object ConfigGenerator {
         val route = JSONObject()
         val rules = JSONArray()
 
-        // 0. 基础嗅探与 DNS 劫持
+        // 0. 嗅探与 DNS 劫持
         rules.put(JSONObject().put("action", "sniff"))
         rules.put(JSONObject().apply {
             put("protocol", "dns")
             put("action", "hijack-dns")
         })
 
-        // 0.1 阻断直接 DNS 请求，防止被 final: block 误杀
+        // 0.1 DNS 请求直通
         rules.put(JSONObject().apply {
             put("port", JSONArray().put(53).put(853))
             put("outbound", GatewayConstants.TAG_PROXY)
@@ -181,7 +222,7 @@ object ConfigGenerator {
             put("outbound", GatewayConstants.TAG_BLOCK)
         })
 
-        // 2. 优先级白名单 (极速直连/优先) -> PROXY (或 DIRECT)
+        // 2. 优先级白名单 (直接放行/直连) -> PROXY
         rules.put(JSONObject().apply {
             put("rule_set", GatewayConstants.TAG_RULESET_PRIORITY_WHITELIST)
             put("outbound", GatewayConstants.TAG_PROXY)
@@ -199,7 +240,7 @@ object ConfigGenerator {
             put("outbound", GatewayConstants.TAG_DIRECT)
         })
 
-        // 5. 代理名单 -> PROXY
+        // 5. 白名单 -> PROXY
         rules.put(JSONObject().apply {
             put("rule_set", GatewayConstants.TAG_RULESET_WHITELIST)
             put("outbound", GatewayConstants.TAG_PROXY)
@@ -207,7 +248,7 @@ object ConfigGenerator {
 
         route.put("rules", rules)
 
-        // 4 大本地规则集文件指向
+        // 4 大本地规则文件指针
         val rulesDir = RuleSetManager.getRulesDir(context).absolutePath
         val ruleSetArray = JSONArray()
 
@@ -231,7 +272,7 @@ object ConfigGenerator {
         route.put("final", GatewayConstants.TAG_BLOCK)
         route.put("auto_detect_interface", true)
 
-        Log.i(GatewayConstants.TAG, "[ConfigGenerator] 成功构建 4 层分流规则链: Priority -> Blacklist -> Direct -> Whitelist (Final: ${GatewayConstants.TAG_BLOCK})")
+        Log.i(GatewayConstants.TAG, "[ConfigGenerator] 成功组装 4 层规则: Priority -> Blacklist -> Direct -> Whitelist (Final: ${GatewayConstants.TAG_BLOCK})")
 
         return route
     }
