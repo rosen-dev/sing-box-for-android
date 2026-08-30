@@ -1,0 +1,414 @@
+payload:
+  # ==========================================================
+  # RuleSet for PROXY Connections (白名单规则)
+  # ==========================================================
+
+  # --- Core Google & Android Services ---
+  # Certificate & Connectivity (证书 & 连通性检查)
+  - DOMAIN-SUFFIX,c.pki.goog
+  - DOMAIN-SUFFIX,ocsps.ssl.com
+  - DOMAIN-SUFFIX,x1.c.lencr.org
+  - DOMAIN-SUFFIX,time.android.com
+  - DOMAIN-SUFFIX,connectivitycheck.gstatic.com
+  # Google Static Content (谷歌静态资源)
+  - DOMAIN-SUFFIX,fonts.googleapis.com
+  - DOMAIN-SUFFIX,fonts.gstatic.com
+  - DOMAIN-SUFFIX,mw1.gstatic.com
+  - DOMAIN-SUFFIX,ssl.gstatic.com
+  - DOMAIN-SUFFIX,encrypted-tbn0.gstatic.com
+  - DOMAIN-SUFFIX,gstatic.com
+  # Google Cloud & APIs (谷歌云 & API)
+  - DOMAIN-SUFFIX,amazonaws.com # (虽然是Amazon，但常用于Google服务)
+  - DOMAIN-SUFFIX,storage.googleapis.com
+  - DOMAIN-SUFFIX,uc.appengine.google.com
+  - DOMAIN-SUFFIX,android.clients.google.com
+  - DOMAIN-SUFFIX,android.googleapis.com
+  - DOMAIN-SUFFIX,apis.google.com
+  - DOMAIN-SUFFIX,clients2.google.com
+  - DOMAIN-SUFFIX,clients4.google.com
+  - DOMAIN-SUFFIX,clients6.google.com
+  - DOMAIN-SUFFIX,clientservices.googleapis.com
+  - DOMAIN-SUFFIX,content.googleapis.com
+  - DOMAIN-SUFFIX,update.googleapis.com
+  - DOMAIN-SUFFIX,googleapis.com
+  - DOMAIN-SUFFIX,gcs.googleapis.com
+  # Google Account & Sync (谷歌账户 & 同步)
+  - DOMAIN-SUFFIX,accounts.google.com
+  - DOMAIN-KEYWORD,accounts.google # 确保accounts.google.com.vn 等其他后缀其他国家的accounts.google.com也能访问。
+  - DOMAIN-SUFFIX,accountsettingsmobile-pa.googleapis.com
+  - DOMAIN-SUFFIX,accountcapabilities-pa.googleapis.com
+  - DOMAIN-SUFFIX,myaccount.google.com
+  - DOMAIN-SUFFIX,myphonenumbers-pa.googleapis.com
+  - DOMAIN-SUFFIX,passbox-pa.googleapis.com
+  - DOMAIN-SUFFIX,cryptauthenrollment.googleapis.com
+  - DOMAIN-SUFFIX,authenticator.google.com
+  - DOMAIN-SUFFIX,gmscompliance-pa.googleapis.com
+  - DOMAIN-SUFFIX,androidplatformbackuprestore-pa.googleapis.com
+  - DOMAIN-SUFFIX,appsbackup-pa.googleapis.com
+  - DOMAIN-SUFFIX,chromesyncentities-pa.googleapis.com
+  - DOMAIN-SUFFIX,chromesyncpasswords-pa.googleapis.com
+
+  # Firebase & Push Notifications (Firebase & 推送服务)
+  - DOMAIN-SUFFIX,fcmconnection.googleapis.com
+  - DOMAIN-SUFFIX,mtalk.google.com
+  - DOMAIN-SUFFIX,notifications-pa.googleapis.com
+  - DOMAIN-SUFFIX,notifications-ueeshp-pa.googleapis.com
+  - DOMAIN-SUFFIX,firebase-settings.crashlytics.com
+  - DOMAIN-SUFFIX,firebaseinstallations.googleapis.com
+  - DOMAIN-SUFFIX,firebaselogging.googleapis.com
+  # Misc Google Services (其他谷歌服务)
+  - DOMAIN-SUFFIX,safebrowsing.google.com
+  - DOMAIN-SUFFIX,safebrowsing.googleapis.com
+  - DOMAIN-SUFFIX,recaptcha.google.com
+  - DOMAIN-SUFFIX,recaptcha.net
+  - DOMAIN-SUFFIX,scone-pa.googleapis.com
+  - DOMAIN-SUFFIX,appsgrowthpromo-pa.clients6.google.com
+  - DOMAIN-SUFFIX,content-autofill.googleapis.com
+  - DOMAIN-SUFFIX,csp.withgoogle.com
+  - DOMAIN-SUFFIX,feedback-pa.clients6.google.com
+  - DOMAIN-SUFFIX,feedback-pa.googleapis.com
+  - DOMAIN-SUFFIX,ogs.google.com
+  - DOMAIN-SUFFIX,ogads-pa.clients6.google.com
+  - DOMAIN-SUFFIX,optimizationguide-pa.googleapis.com
+  - DOMAIN-SUFFIX,playatoms-pa.googleapis.com
+  - DOMAIN-SUFFIX,support.google.com
+  - DOMAIN-SUFFIX,waa-pa.clients6.google.com
+  - DOMAIN-SUFFIX,googletagmanager.com
+  # Google User Content (谷歌用户内容)
+  - DOMAIN-SUFFIX,googleusercontent.com
+  - DOMAIN-SUFFIX,lh3.google.com
+  - DOMAIN-SUFFIX,lh3.googleusercontent.com
+  - DOMAIN-SUFFIX,storage.l.googleusercontent.com
+  # Google Video (视频相关)
+  - DOMAIN-SUFFIX,googlevideo.com
+
+  # --- Google Apps ---
+  # Google Drive, Cloud Search (云盘, 云搜索)
+  - DOMAIN-SUFFIX,cloudsearch.googleapis.com
+  - DOMAIN-SUFFIX,drive.files.ggpht.com
+  - DOMAIN-SUFFIX,ggpht.com
+  - DOMAIN-SUFFIX,drivefrontend-pa.clients6.google.com
+  - DOMAIN-SUFFIX,drivefrontend-pa.googleapis.com
+  - DOMAIN-SUFFIX,subscriptionsmobile-pa.googleapis.com
+  - DOMAIN-SUFFIX,drive.google.com
+  - DOMAIN-SUFFIX,drive-pa.googleapis.com
+  # Google Docs Suite (谷歌文档套件)
+  - DOMAIN-SUFFIX,books.google.com
+  - DOMAIN-SUFFIX,docs.google.com
+  - DOMAIN-SUFFIX,sheets.google.com
+  - DOMAIN-SUFFIX,slides.google.com
+  # Gmail, Inbox (邮箱)
+  - DOMAIN-SUFFIX,gmail.com
+  - DOMAIN-SUFFIX,inbox.google.com
+  - DOMAIN-SUFFIX,mail.google.com
+  # Google Subscriptions (订阅管理)
+  - DOMAIN-SUFFIX,subscriptionsfirstparty-pa.googleapis.com
+  - DOMAIN-SUFFIX,subscriptionsmanagement-pa.googleapis.com
+  # Google Meet, Hangouts (会议, 聊天)
+  - DOMAIN-SUFFIX,addons-pa.googleapis.com
+  - DOMAIN-SUFFIX,auditrecording-pa.googleapis.com
+  - DOMAIN-SUFFIX,hangouts.google.com
+  - DOMAIN-SUFFIX,meet.google.com
+  - DOMAIN-SUFFIX,meet.turns.goog
+  - DOMAIN-SUFFIX,meetings.googleapis.com
+  - DOMAIN-SUFFIX,signaler-pa.clients6.google.com
+  - DOMAIN-SUFFIX,signaler-pa.googleapis.com
+  - DOMAIN-SUFFIX,voilatile-pa.googleapis.com
+  # Google Contacts (联系人)
+  - DOMAIN-SUFFIX,contacts.google.com
+  - DOMAIN-SUFFIX,contactsui-pa.googleapis.com
+  - DOMAIN-SUFFIX,people-pa.clients6.google.com
+  - DOMAIN-SUFFIX,people-pa.googleapis.com
+  - DOMAIN-SUFFIX,peoplestack-pa.clients6.google.com
+  - DOMAIN-SUFFIX,peoplestack-pa.googleapis.com
+  - DOMAIN-SUFFIX,peoplestackwebexperiments-pa.clients6.google.com
+  # Google Calendar, Tasks (日历, 任务)
+  - DOMAIN-SUFFIX,calendar.google.com
+  - DOMAIN-SUFFIX,calendarpushsubscription-pa.googleapis.com
+  - DOMAIN-SUFFIX,calendarsync-pa.googleapis.com
+  - DOMAIN-SUFFIX,reminders-pa.googleapis.com
+  # Google Photos (相册)
+  - DOMAIN-SUFFIX,photos.fife.usercontent.google.com
+  - DOMAIN-SUFFIX,photosdata-pa.googleapis.com
+  # Google Maps, Earth, Location (地图, 地球, 位置)
+  - DOMAIN-SUFFIX,agnss.goog
+  - DOMAIN-SUFFIX,kh.google.com
+  - DOMAIN-SUFFIX,maps-api-ssl.google.com
+  - DOMAIN-SUFFIX,maps.googleapis.com
+  - DOMAIN-SUFFIX,mapsmobilesdks-pa.googleapis.com
+  - DOMAIN-SUFFIX,mt0.google.com
+  - DOMAIN-SUFFIX,mw1.google.com
+  - DOMAIN-SUFFIX,nearbysharing-pa.googleapis.com
+  - DOMAIN-SUFFIX,pixelweatherhub-pa.googleapis.com
+  - DOMAIN-SUFFIX,places.googleapis.com
+  - DOMAIN-SUFFIX,semanticlocation-pa.googleapis.com
+  - DOMAIN-SUFFIX,userlocation.googleapis.com
+  - DOMAIN-SUFFIX,earth.google.com
+  - DOMAIN-SUFFIX,earth-pa.clients6.google.com
+  - DOMAIN-SUFFIX,earthstudio.googleapis.com
+  - DOMAIN-SUFFIX,geo3d.googleapis.com
+  # Google Input & Speech (输入法 & 语音)
+  - DOMAIN-SUFFIX,dl.google.com
+  - DOMAIN-SUFFIX,gboard-pa.googleapis.com
+  - DOMAIN-SUFFIX,speech.googleapis.com
+  - DOMAIN-SUFFIX,speechs3prot02-pa.googleapis.com
+  - DOMAIN-SUFFIX,tenor.googleapis.com
+  # Other Google Apps (其他谷歌应用)
+  - DOMAIN-SUFFIX,one.google.com
+  - DOMAIN-SUFFIX,assistant.google.com
+  - DOMAIN-SUFFIX,embeddedassistant.googleapis.com
+  - DOMAIN-SUFFIX,jnn-pa.googleapis.com
+  - DOMAIN-SUFFIX,keep.google.com
+  - DOMAIN-SUFFIX,kidsmanagement-pa.googleapis.com
+  - DOMAIN-SUFFIX,notes-pa.googleapis.com
+  - DOMAIN-SUFFIX,translate.goog
+
+  # --- AI Services ---
+  # Google AI (Gemini, Bard, DeepMind etc.)
+  - DOMAIN-SUFFIX,ai.google.com
+  - DOMAIN-SUFFIX,ai.google.dev
+  - DOMAIN-SUFFIX,ai.dev
+  - DOMAIN-SUFFIX,antigravity.google
+  - DOMAIN-KEYWORD,antigravity
+  - DOMAIN-SUFFIX,appsgenaiserver-pa.clients6.google.com
+  - DOMAIN-SUFFIX,appsgenaiserver-pa.googleapis.com
+  - DOMAIN-SUFFIX,alkalicore-pa.clients6.google.com
+  - DOMAIN-SUFFIX,bard.google.com
+  - DOMAIN-SUFFIX,gemini.google.com
+  # > Google Generative Language API
+  - DOMAIN-SUFFIX,generativelanguage.googleapis.com
+  - DOMAIN-SUFFIX,geller-pa.googleapis.com
+  - DOMAIN-SUFFIX,proactivebackend-pa.googleapis.com
+
+  # > Google AI Studio
+  - DOMAIN-KEYWORD,alkalimakersuite-pa.clients6.google.com
+  - DOMAIN-SUFFIX,aistudio.google.com
+  - DOMAIN-SUFFIX,makersuite.google.com
+  - DOMAIN-SUFFIX,generativeai.google
+  - DOMAIN,ai.google.dev
+  - DOMAIN,alkalicore-pa.clients6.google.com
+  - DOMAIN,waa-pa.clients6.google.com
+  # > Google NotebookLM
+  - DOMAIN-SUFFIX,notebooklm.google
+  - DOMAIN-SUFFIX,notebooklm.google.com
+
+  - DOMAIN-SUFFIX,deepmind.com
+  - DOMAIN-SUFFIX,deepmind.google
+  - DOMAIN-SUFFIX,notebooklm-pa.googleapis.com
+  - DOMAIN-SUFFIX,cloud.google.com
+  - DOMAIN-SUFFIX,cloudresourcemanager.googleapis.com
+  - DOMAIN-SUFFIX,iam.googleapis.com
+  - DOMAIN-SUFFIX,serviceusage.googleapis.com
+  # Grok AI
+  - DOMAIN-KEYWORD,grok
+  - DOMAIN-SUFFIX,grokipedia.com
+  - DOMAIN-SUFFIX,x.ai
+  - DOMAIN-SUFFIX,grok.com
+  - DOMAIN-SUFFIX,assets.grok.com
+  - DOMAIN-SUFFIX,ssff.grok.com
+  - DOMAIN-SUFFIX,grokusercontent.com
+  # cloudflare （grok会用到它们的服务）
+  - DOMAIN-SUFFIX,cloudflare.com
+  - DOMAIN-SUFFIX,cloudflare.net
+  - DOMAIN-SUFFIX,cloudflareinsights.com
+  # Grok AI 可能用到的其他第三方域名
+  - DOMAIN-SUFFIX,featureassets.org
+  - DOMAIN-SUFFIX,mixpanel.com
+  # Other AI/ML
+  - DOMAIN-SUFFIX,espresso-pa.clients6.google.com
+  - DOMAIN-SUFFIX,mobilemlaccelerationcompatibility.googleapis.com
+  - DOMAIN-SUFFIX,readaloud.googleapis.com
+  - DOMAIN-SUFFIX,taskassist-pa.clients6.google.com
+  - DOMAIN-SUFFIX,taskassist-pa.googleapis.com
+  # Manus AI agent
+  - DOMAIN-KEYWORD,manus
+  - DOMAIN-SUFFIX,cloudfront.net
+  - DOMAIN-KEYWORD,amplitude
+  - DOMAIN-SUFFIX,amplitude.com
+  - DOMAIN-SUFFIX,butterfly-effect.dev
+  - DOMAIN-SUFFIX,plausible.io
+  - DOMAIN-SUFFIX,gist.build
+  # anthropic AI
+  - DOMAIN-SUFFIX,anthropic.com
+  - DOMAIN-SUFFIX,claude.ai
+  - DOMAIN-SUFFIX,claude.com
+  - DOMAIN-SUFFIX,bridge.claudeusercontent.com
+  - DOMAIN-SUFFIX,sanity.io
+  - DOMAIN-SUFFIX,assets.claude.ai
+
+  # OpenAI & ChatGPT (Epidemic Sound AI 语义搜歌 & ChatGPT 官方生态)
+  - DOMAIN-SUFFIX,openai.com
+  - DOMAIN-SUFFIX,chatgpt.com
+  - DOMAIN-SUFFIX,oaistatic.com
+  - DOMAIN-SUFFIX,oaiusercontent.com
+
+  # Epidemic Sound (免版税音乐与音效库 - 全套高速代理)
+  - DOMAIN-SUFFIX,epidemicsound.com
+  - DOMAIN-SUFFIX,optimizely.com
+  - DOMAIN-SUFFIX,contentful.com
+  - DOMAIN-SUFFIX,recurly.com
+  - DOMAIN-SUFFIX,sentry-cdn.com
+  - DOMAIN-SUFFIX,cookiepro.com
+  - DOMAIN-SUFFIX,gstatic.cn
+
+  # > Google FCM
+  # According to Firebase FAQ https://firebase.google.com/docs/cloud-messaging/concept-options#messaging-ports-and-your-firewall
+  - DOMAIN,mtalk.google.com
+  - DOMAIN,mtalk4.google.com
+  - DOMAIN,mtalk-staging.google.com
+  - DOMAIN,mtalk-dev.google.com
+  - DOMAIN,alt1-mtalk.google.com
+  - DOMAIN,alt2-mtalk.google.com
+  - DOMAIN,alt3-mtalk.google.com
+  - DOMAIN,alt4-mtalk.google.com
+  - DOMAIN,alt5-mtalk.google.com
+  - DOMAIN,alt6-mtalk.google.com
+  - DOMAIN,alt7-mtalk.google.com
+  - DOMAIN,alt8-mtalk.google.com
+  - DOMAIN,android.apis.google.com
+  - DOMAIN,device-provisioning.googleapis.com
+  - DOMAIN,firebaseinstallations.googleapis.com
+  - IP-CIDR,64.233.177.188/32,no-resolve
+  - IP-CIDR,64.233.186.188/32,no-resolve
+  - IP-CIDR,64.233.187.188/32,no-resolve
+  - IP-CIDR,64.233.188.188/32,no-resolve
+  - IP-CIDR,64.233.189.188/32,no-resolve
+  - IP-CIDR,74.125.23.188/32,no-resolve
+  - IP-CIDR,74.125.24.188/32,no-resolve
+  - IP-CIDR,74.125.28.188/32,no-resolve
+  - IP-CIDR,74.125.127.188/32,no-resolve
+  - IP-CIDR,74.125.137.188/32,no-resolve
+  - IP-CIDR,74.125.203.188/32,no-resolve
+  - IP-CIDR,74.125.204.188/32,no-resolve
+  - IP-CIDR,74.125.206.188/32,no-resolve
+  - IP-CIDR,108.177.125.188/32,no-resolve
+  - IP-CIDR,142.250.4.188/32,no-resolve
+  - IP-CIDR,142.250.10.188/32,no-resolve
+  - IP-CIDR,142.250.31.188/32,no-resolve
+  - IP-CIDR,142.250.96.188/32,no-resolve
+  - IP-CIDR,172.217.194.188/32,no-resolve
+  - IP-CIDR,172.217.218.188/32,no-resolve
+  - IP-CIDR,172.217.219.188/32,no-resolve
+  - IP-CIDR,172.253.63.188/32,no-resolve
+  - IP-CIDR,172.253.122.188/32,no-resolve
+  - IP-CIDR,173.194.175.188/32,no-resolve
+  - IP-CIDR,173.194.218.188/32,no-resolve
+  - IP-CIDR,209.85.233.188/32,no-resolve
+
+
+  # --- Third-Party Services ---
+  # Figma
+  - DOMAIN-SUFFIX,figma.com
+  - DOMAIN-SUFFIX,figma.net
+  - DOMAIN-SUFFIX,figma.static.com
+  - DOMAIN-SUFFIX,website-files.com
+
+  # GitHub
+  - DOMAIN-SUFFIX,github.com
+  - DOMAIN-SUFFIX,githubusercontent.com
+  - DOMAIN-SUFFIX,gh-proxy.org
+  - DOMAIN-SUFFIX,jetbrains.com
+  - DOMAIN-SUFFIX,stackoverflow.com
+
+  # --- Developer Tools (Python, FastAPI, Android) ---
+  # Python (PyPI & Conda)
+  - DOMAIN-SUFFIX,pypi.org
+  - DOMAIN-SUFFIX,pythonhosted.org
+  - DOMAIN-SUFFIX,files.pythonhosted.org
+  - DOMAIN-SUFFIX,anaconda.com
+  - DOMAIN-SUFFIX,conda.io
+  # Android & Gradle
+  - DOMAIN-SUFFIX,android.com
+  - DOMAIN-SUFFIX,maven.org
+  - DOMAIN-SUFFIX,jitpack.io
+  - DOMAIN-SUFFIX,gradle.org
+  - DOMAIN-SUFFIX,services.gradle.org
+  # FastAPI & Backend
+  - DOMAIN-SUFFIX,tiangolo.com
+  - DOMAIN-SUFFIX,uvicorn.org
+  - DOMAIN-SUFFIX,pydantic.dev
+  - DOMAIN-SUFFIX,docker.com
+  - DOMAIN-SUFFIX,docker.io
+  - DOMAIN-SUFFIX,swagger.io
+
+  # Flutter & Dart
+  - DOMAIN-SUFFIX,pub.dev
+  - DOMAIN-SUFFIX,flutter.dev
+  - DOMAIN-SUFFIX,dart.dev
+
+  # Notion
+  - DOMAIN-SUFFIX,splunkcloud.com
+  - DOMAIN-SUFFIX,api.statsig.com
+  - DOMAIN-SUFFIX,code.gist.build
+  - DOMAIN-SUFFIX,desktop-release.notion-static.com
+  - DOMAIN-SUFFIX,exp.notion.so
+  - DOMAIN-SUFFIX,identity.notion.so
+  - DOMAIN-SUFFIX,img.notionusercontent.com
+  - DOMAIN-SUFFIX,msgstore.www.notion.so
+  - DOMAIN-SUFFIX,notion.com
+  - DOMAIN-SUFFIX,notion.so
+  - DOMAIN-SUFFIX,statsigapi.net
+  - DOMAIN-SUFFIX,http-inputs-notion.splunkcloud.com
+  - DOMAIN-KEYWORD,sentry.io
+  - DOMAIN-SUFFIX,track.customer.io
+  - DOMAIN-SUFFIX,prodregistryv2.org
+  - DOMAIN-KEYWORD,standsapp.org
+  - DOMAIN-SUFFIX,vimeo.com
+  - DOMAIN-SUFFIX,vimeocdn.com
+  # Analytics (分析)
+  - DOMAIN-SUFFIX,analytics.google.com
+  - DOMAIN-SUFFIX,app-measurement.com
+  - DOMAIN-SUFFIX,ssl.google-analytics.com
+  - DOMAIN-SUFFIX,google-analytics.com
+  - DOMAIN-SUFFIX,gravatar.com
+  - DOMAIN-KEYWORD,datadoghq
+
+  # 公共资源 CDN (Figma & Claude 依赖)
+  - DOMAIN-SUFFIX,unpkg.com
+  - DOMAIN-SUFFIX,jsdelivr.net
+
+  # General Fallback (通用后备)
+  - DOMAIN-KEYWORD,google.com. # 确保所有国家的Google域名都可以访问，比如台湾 google.com.tw
+  - DOMAIN-SUFFIX,google.com
+  # --- 补充 Google CDN ---
+  - DOMAIN-SUFFIX,gvt1.com
+  - DOMAIN-SUFFIX,gvt2.com
+  - DOMAIN-SUFFIX,gvt3.com
+  # 谷歌安全浏览（Safe Browsing）服务
+  - DOMAIN-SUFFIX,fastly-edge.com
+  # 谷歌证书服务
+  - DOMAIN-SUFFIX,pki.goog
+
+  # 字幕下载 subtitle downloader
+  - DOMAIN-KEYWORD,downsub
+  - DOMAIN-KEYWORD,subtitle
+
+  # --- Microsoft Cloud & Authentication (微软云服务、登录与待办任务) ---
+  # Account & Authentication (账号登录与认证)
+  - DOMAIN-SUFFIX,login.microsoftonline.com
+  - DOMAIN-SUFFIX,login.microsoft.com
+  - DOMAIN-SUFFIX,login.live.com
+  - DOMAIN-SUFFIX,data.microsoft.com
+  - DOMAIN-SUFFIX,fpt.microsoft.com
+  - DOMAIN-SUFFIX,g.live.com
+  - DOMAIN-SUFFIX,fpt.live.com
+
+  # Microsoft To Do (待办任务)
+  - DOMAIN-SUFFIX,to-do.microsoft.com
+  - DOMAIN-SUFFIX,to-do.office.com
+  - DOMAIN-SUFFIX,to-do.live.com
+
+  # Office 365 Cloud & Azure (Office 云协同与 Azure 控制台)
+  - DOMAIN-SUFFIX,office.com
+  - DOMAIN-SUFFIX,officeapps.live.com
+  - DOMAIN-SUFFIX,cloud.microsoft
+  - DOMAIN-SUFFIX,azure.com
+  - DOMAIN-SUFFIX,graph.microsoft.com
+  - DOMAIN-SUFFIX,o15.officeredir.microsoft.com
+  - DOMAIN-SUFFIX,config.edge.skype.com
+
+  # Google IP Ranges (Google 核心 IP 网段兜底，放在最末以避免对域名请求触发不必要的 DNS 解析)
+  - IP-CIDR,172.217.0.0/16             # 解决日志中被拦截的 172.217.11x.4 等 IP
+  - IP-CIDR,142.250.0.0/15             # Google 最常用的核心 API/服务 IP 网段
+  - IP-CIDR,216.58.192.0/19            # Google 常用服务网段
+  - IP-CIDR,173.194.0.0/16             # Google 常用服务网段

@@ -1,0 +1,29 @@
+payload:
+  # ==========================================================
+  # RuleSet for REJECT Connections (黑名单规则)
+  # ==========================================================
+
+  # Google Play Services (部分服务，其余移至Timed)
+  - DOMAIN-SUFFIX,play.googleapis.com
+  - DOMAIN-SUFFIX,play-fe.googleapis.com
+  # Google Play (谷歌商店)
+#  - DOMAIN-SUFFIX,play.google.com
+  # Google Search (谷歌搜索)
+  - DOMAIN,www.google.com
+#  不屏蔽AI了- DOMAIN-SUFFIX,gemini.google.com
+#  不屏蔽AI了- DOMAIN-SUFFIX,aistudio.google.com
+#  不屏蔽AI了- DOMAIN-SUFFIX,grok.com
+  # 屏蔽Gmail、Google drive中的Gemini
+#  不屏蔽AI了- DOMAIN-KEYWORD,appsgenaiserver-pa
+  # 把Manus 也屏蔽
+#  不屏蔽AI了- DOMAIN-KEYWORD,manus
+
+  # YouTube (油管)
+  - DOMAIN-SUFFIX,youtube.com
+  - DOMAIN-SUFFIX,m.youtube.com
+  - DOMAIN-SUFFIX,s.youtube.com
+  - DOMAIN-SUFFIX,i.ytimg.com
+  - DOMAIN-SUFFIX,yt3.ggpht.com
+  - DOMAIN-SUFFIX,ytimg.com
+  - DOMAIN-SUFFIX,youtubei.googleapis.com
+  - DOMAIN-SUFFIX,youtube.googleapis.com

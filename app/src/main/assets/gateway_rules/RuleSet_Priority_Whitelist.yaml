@@ -1,0 +1,73 @@
+payload:
+  # ==========================================================
+  # RuleSet for Priority Whitelist (高优先级白名单)
+  # ==========================================================
+  # 逻辑：此规则集先于 Blacklist 匹配。
+  # 用于放行那些被 Blacklist 广谱拦截但仍需使用的特定子域名。
+  # 例如：Blacklist 拦截了 youtube.com，此处放行 accounts.youtube.com 以确保登录正常。
+  - DOMAIN-SUFFIX,accounts.youtube.com
+  - DOMAIN-KEYWORD,accounts.youtube.com. # 确保所有国家的accounts.youtube.com域名都可以访问
+
+  # --- OneDrive 个人版被 GFW 阻断域名 (强制高优先级走代理) ---
+  - DOMAIN-SUFFIX,onedrive.live.com
+  - DOMAIN,skyapi.onedrive.live.com
+  - DOMAIN,contentsync.onedrive.live.com
+
+  # Developer Services (开发者服务)
+  - DOMAIN-SUFFIX,open-vsx.org         # Open VSX 插件市场 (Antigravity IDE 默认插件源)
+  - DOMAIN-SUFFIX,visualstudio.com     # VS Code Extension Marketplace 插件市场
+  - DOMAIN-SUFFIX,vsassets.io          # VS Code 插件静态资源与 CDN
+  - DOMAIN-SUFFIX,vscode-assets.net    # VS Code 插件二进制包下载 CDN
+  - DOMAIN-SUFFIX,vscode-cdn.net
+  - DOMAIN-SUFFIX,npmjs.org
+  - DOMAIN-SUFFIX,nodejs.org
+  - DOMAIN-SUFFIX,golang.org           # Go 语言官方与模块代理 (proxy.golang.org / sum.golang.org)
+  - DOMAIN-SUFFIX,go.dev               # Go 语言官网与包索引 (pkg.go.dev)
+  - DOMAIN-SUFFIX,github.com
+  - DOMAIN-SUFFIX,githubusercontent.com
+  - DOMAIN-SUFFIX,githubassets.com
+  - DOMAIN-SUFFIX,ctfassets.net
+  - DOMAIN-SUFFIX,gradle.org
+  - DOMAIN-SUFFIX,maven.org
+  - DOMAIN-SUFFIX,apache.org
+  - DOMAIN-SUFFIX,maven.google.com
+  - DOMAIN-SUFFIX,jitpack.io
+  - DOMAIN-SUFFIX,yarnpkg.com
+  - DOMAIN-SUFFIX,expo.dev
+  - DOMAIN-SUFFIX,exp.host
+  - DOMAIN,expo.fyi
+  - DOMAIN-SUFFIX,eascdn.net         # Expo EAS Build/Update CDN（构建产物与OTA更新）
+  - DOMAIN-SUFFIX,supabase.com
+  - DOMAIN-SUFFIX,supabase.co
+  - DOMAIN-SUFFIX,googleapis.com       # 含 safebrowsing.googleapis.com（已覆盖）
+  - DOMAIN-SUFFIX,gstatic.com
+  - DOMAIN-SUFFIX,dl.google.com        # Google 下载服务（Android SDK、Chrome 等）
+  - DOMAIN-SUFFIX,goog.com             # Google 短域名（如 antigravity-unleash.goog）
+
+  - DOMAIN-SUFFIX,npmjs.com          # npm CLI 元数据请求（registry 已由 npmjs.org 覆盖）
+  - DOMAIN-SUFFIX,cloudfront.net     # AWS CloudFront CDN（Expo 资源、部分 npm 包二进制文件）
+  - DOMAIN-SUFFIX,android.com        # Android 开发者文档 & Gradle 插件解析
+  - DOMAIN-SUFFIX,unpkg.com          # Expo Web 模式部分依赖的 CDN
+  - DOMAIN-SUFFIX,jsdelivr.net       # JavaScript 包 CDN（Expo Web 依赖）
+
+  # Certificate Verification (证书 OCSP / CRL 验证)
+  - DOMAIN-SUFFIX,lencr.org
+  - DOMAIN-SUFFIX,identrust.com
+  - DOMAIN-SUFFIX,digicert.com
+  - DOMAIN-SUFFIX,sectigo.com
+  - DOMAIN-SUFFIX,globalsign.com
+
+  # Kotlin Multiplatform & JetBrains Build Services
+  - DOMAIN-SUFFIX,jetbrains.com
+  - DOMAIN-SUFFIX,jetbrains.space       # Compose Multiplatform / Skiko 构件仓库
+  - DOMAIN-SUFFIX,jetbrains.team        # JetBrains 扩展构件仓库
+  - DOMAIN-SUFFIX,kotlinlang.org
+  - DOMAIN-SUFFIX,kotl.in               # Kotlin 官方短链重定向
+  - DOMAIN-SUFFIX,objects.githubusercontent.com # GitHub Binary Releases CDN (Node/Yarn)
+  - DOMAIN-SUFFIX,googlesource.com
+  - DOMAIN-SUFFIX,gvt1.com
+  - DOMAIN-SUFFIX,foojay.io             # Gradle Java Toolchain API
+  - DOMAIN-SUFFIX,adoptium.net          # OpenJDK (Temurin) 二进制包下载 CDN
+  - DOMAIN-SUFFIX,cocoapods.org         # iOS CocoaPods 依赖仓库
+  - DOMAIN-SUFFIX,gradle.com            # Gradle Enterprise / Develocity
+

@@ -19,10 +19,15 @@ object GatewayConstants {
     const val FILE_DIRECT = "RuleSet_Direct.json"
     const val FILE_WHITELIST = "RuleSet_Whitelist.json"
 
-    val ALL_RULE_SET_FILES = listOf(
-        FILE_BLACKLIST,
-        FILE_PRIORITY_WHITELIST,
-        FILE_DIRECT,
-        FILE_WHITELIST,
+    const val YAML_BLACKLIST = "RuleSet_Blacklist.yaml"
+    const val YAML_PRIORITY_WHITELIST = "RuleSet_Priority_Whitelist.yaml"
+    const val YAML_DIRECT = "RuleSet_Direct.yaml"
+    const val YAML_WHITELIST = "RuleSet_Whitelist.yaml"
+
+    val RULE_SET_PAIRS = listOf(
+        Pair(YAML_BLACKLIST, FILE_BLACKLIST),
+        Pair(YAML_PRIORITY_WHITELIST, FILE_PRIORITY_WHITELIST),
+        Pair(YAML_DIRECT, FILE_DIRECT),
+        Pair(YAML_WHITELIST, FILE_WHITELIST)
     )
 }
