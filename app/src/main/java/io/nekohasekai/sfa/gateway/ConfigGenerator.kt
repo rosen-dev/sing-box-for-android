@@ -18,7 +18,7 @@ object ConfigGenerator {
             result.put("log", it)
         }
 
-        // 2. 注入符合 Sing-box 1.12+ / 1.13+ 最新规范的极速双分流 DNS 引擎 (无任何弃用警告)
+        // 2. 严格按 sing-box 1.12/1.13 新版 DNS 规范 (type: udp / type: https, 不对空 direct outbound 做冗余 detour)
         result.put("dns", buildFastDNS(original))
 
         // 3. 继承 ntp (若有)
@@ -32,17 +32,17 @@ object ConfigGenerator {
         // 5. 重构 outbounds (归并物理节点 -> 唯一 PROXY 选择器组)
         result.put("outbounds", buildOutbounds(original))
 
-        // 6. 自定义 5 层路由规则与本地 RuleSet 绑定 (配置 default_domain_resolver，消除所有弃用警告)
+        // 6. 自定义 5 层路由规则与本地 RuleSet 绑定 (声明 default_domain_resolver)
         result.put("route", buildRoute(context))
 
-        // 7. 继承 experimental (确保 Clash API 可用)
+        // 7. 继承 experimental (按 1.13.21 标准仅启用 cache_file 与 clash_api)
         val experimental = original.optJSONObject("experimental") ?: JSONObject()
         if (!experimental.has("clash_api")) {
             experimental.put("clash_api", JSONObject().put("external_controller", "127.0.0.1:9090"))
         }
-        if (!experimental.has("cache_file")) {
-            experimental.put("cache_file", JSONObject().put("enabled", true))
-        }
+        val cacheFile = experimental.optJSONObject("cache_file") ?: JSONObject()
+        cacheFile.put("enabled", true)
+        experimental.put("cache_file", cacheFile)
         result.put("experimental", experimental)
 
         val finalConfigStr = result.toString(2)
@@ -54,20 +54,20 @@ object ConfigGenerator {
         val dns = JSONObject()
         val servers = JSONArray()
 
-        // 1. 节点域名与国内直连极速 DNS (阿里直连，5ms 秒解析)
+        // 1. 节点域名与国内直连极速 DNS (type: "udp", server: "223.5.5.5", 移除无意义的 detour to direct)
         servers.put(JSONObject().apply {
             put("tag", "dns-direct")
-            put("address", "223.5.5.5")
-            put("detour", GatewayConstants.TAG_DIRECT)
-            put("strategy", "prefer_ipv4")
+            put("type", "udp")
+            put("server", "223.5.5.5")
         })
 
-        // 2. 远端防污染 DNS (Cloudflare DoH)
+        // 2. 远端防污染 DNS (type: "https", server: "1.1.1.1", path: "/dns-query", domain_resolver: "dns-direct")
         servers.put(JSONObject().apply {
             put("tag", "dns-remote")
-            put("address", "https://1.1.1.1/dns-query")
-            put("address_resolver", "dns-direct")
-            put("strategy", "prefer_ipv4")
+            put("type", "https")
+            put("server", "1.1.1.1")
+            put("path", "/dns-query")
+            put("domain_resolver", "dns-direct")
         })
 
         dns.put("servers", servers)
@@ -78,7 +78,7 @@ object ConfigGenerator {
             put("rule_set", GatewayConstants.TAG_RULESET_DIRECT)
             put("server", "dns-direct")
         })
-        // 黑名单直接拒绝 DNS (Sing-box 1.12+ 规范: action: reject)
+        // 黑名单走拒绝动作 (action: reject)
         dnsRules.put(JSONObject().apply {
             put("rule_set", GatewayConstants.TAG_RULESET_BLACKLIST)
             put("action", "reject")
@@ -87,9 +87,8 @@ object ConfigGenerator {
         dns.put("rules", dnsRules)
         dns.put("final", "dns-remote")
         dns.put("strategy", "prefer_ipv4")
-        dns.put("independent_cache", true)
 
-        Log.i(GatewayConstants.TAG, "[ConfigGenerator] 注入高性能双分流 DNS 引擎 (无弃用字段, direct: 223.5.5.5, independent_cache: true)")
+        Log.i(GatewayConstants.TAG, "[ConfigGenerator] 注入现代标准 DNS 引擎 (type: udp / type: https)")
         return dns
     }
 
@@ -187,20 +186,22 @@ object ConfigGenerator {
         val route = JSONObject()
         val rules = JSONArray()
 
-        // 0. 嗅探
+        // 0. 嗅探 (Sniff)
         rules.put(JSONObject().put("action", "sniff"))
+
+        // 0.1 DNS 劫持 (Hijack DNS)
         rules.put(JSONObject().apply {
             put("protocol", "dns")
             put("action", "hijack-dns")
         })
 
-        // 0.1 DNS 请求直通
+        // 0.2 DNS 端口直通 (Port 53, 853)
         rules.put(JSONObject().apply {
             put("port", JSONArray().put(53).put(853))
             put("outbound", GatewayConstants.TAG_PROXY)
         })
 
-        // 1. 特定设备过滤规则 (192.168.10.50 + googlevideo.com -> block, 显式声明 type: logical)
+        // 1. 特定设备过滤规则 (192.168.10.50 + googlevideo.com -> reject)
         rules.put(JSONObject().apply {
             put("type", "logical")
             put("mode", "and")
@@ -208,7 +209,7 @@ object ConfigGenerator {
                 put(JSONObject().put("source_ip_cidr", JSONArray().put("192.168.10.50/32")))
                 put(JSONObject().put("domain_suffix", JSONArray().put("googlevideo.com")))
             })
-            put("outbound", GatewayConstants.TAG_BLOCK)
+            put("action", "reject")
         })
 
         // 2. 优先级白名单 (直接放行/直连) -> PROXY
@@ -217,10 +218,10 @@ object ConfigGenerator {
             put("outbound", GatewayConstants.TAG_PROXY)
         })
 
-        // 3. 黑名单 -> block
+        // 3. 黑名单 -> reject
         rules.put(JSONObject().apply {
             put("rule_set", GatewayConstants.TAG_RULESET_BLACKLIST)
-            put("outbound", GatewayConstants.TAG_BLOCK)
+            put("action", "reject")
         })
 
         // 4. 直连名单 -> direct
@@ -258,12 +259,12 @@ object ConfigGenerator {
         }
 
         route.put("rule_set", ruleSetArray)
-        // 关键: 指定 default_domain_resolver 为 dns-direct，彻底消除 1.12+ 弃用警告
+        // 关键: 指定 default_domain_resolver 为 dns-direct
         route.put("default_domain_resolver", "dns-direct")
         route.put("final", GatewayConstants.TAG_BLOCK)
         route.put("auto_detect_interface", true)
 
-        Log.i(GatewayConstants.TAG, "[ConfigGenerator] 成功组装 4 层规则: Priority -> Blacklist -> Direct -> Whitelist (default_domain_resolver: dns-direct, Final: ${GatewayConstants.TAG_BLOCK})")
+        Log.i(GatewayConstants.TAG, "[ConfigGenerator] 组装 5 层路由规则完成 (default_domain_resolver: dns-direct)")
 
         return route
     }
