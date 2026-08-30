@@ -2,7 +2,6 @@
   "version": 4,
   "rules": [
     {
-      "_comment": "Local Network (本地网络)",
       "domain_suffix": [
         "local"
       ],
@@ -17,13 +16,11 @@
       ]
     },
     {
-      "_comment": "> Fast",
       "domain_suffix": [
         "fast.com"
       ]
     },
     {
-      "_comment": "USER-AGENT,SpeedTest*",
       "domain": [
         "speed.dler.io"
       ],
@@ -35,13 +32,11 @@
       ]
     },
     {
-      "_comment": "> Speed Test by Cloudflare",
       "domain_suffix": [
         "speed.cloudflare.com"
       ]
     },
     {
-      "_comment": "Windows 连通性测试 (NCSI)",
       "domain_suffix": [
         "dns.msftncsi.com",
         "msftncsi.com",
@@ -53,7 +48,6 @@
       ]
     },
     {
-      "_comment": "Microsoft & Windows Update (微软 & Windows 系统更新直连)",
       "domain_suffix": [
         "msn.com",
         "arc.msn.com",
@@ -70,7 +64,6 @@
       ]
     },
     {
-      "_comment": "Microsoft 官网与技术支持 (直连)",
       "domain": [
         "www.microsoft.com",
         "microsoft.com"
@@ -89,7 +82,6 @@
       ]
     },
     {
-      "_comment": "微软国内可用静态资源 & CDN 边缘分发",
       "domain_suffix": [
         "office.net",
         "static.microsoft",
@@ -108,7 +100,6 @@
       ]
     },
     {
-      "_comment": "OneDrive 数据与文档同步网关",
       "domain": [
         "api.onedrive.com",
         "storage.live.com"
@@ -129,7 +120,6 @@
       ]
     },
     {
-      "_comment": "OneNote 笔记、画布分区与实时协作 (极速直连)",
       "domain_suffix": [
         "onenote.com",
         "onenote.cloud.microsoft",
@@ -144,13 +134,11 @@
       ]
     },
     {
-      "_comment": "加入用于屏蔽微信和支付宝中短视频的私人DNS服务",
       "domain_suffix": [
         "nextdns.io"
       ]
     },
     {
-      "_comment": "加入小米笔记",
       "domain_suffix": [
         "mi.com",
         "mi-img.com",
@@ -159,13 +147,11 @@
       ]
     },
     {
-      "_comment": "商米 (Sunmi)",
       "domain_suffix": [
         "sunmi.com"
       ]
     },
     {
-      "_comment": "Deepseek",
       "domain_suffix": [
         "deepseek.com",
         "deepseek.cn"
@@ -175,7 +161,6 @@
       ]
     },
     {
-      "_comment": "Tencent Cloud & Payment (腾讯云与支付)",
       "domain": [
         "api.mch.weixin.qq.com"
       ],
@@ -189,14 +174,12 @@
       ]
     },
     {
-      "_comment": "Memfire (国内 Supabase 替代)",
       "domain_suffix": [
         "memfiredb.com",
         "memfire.com"
       ]
     },
     {
-      "_comment": "Aliyun Maven & npm Mirror / 国内开发者服务",
       "domain_suffix": [
         "aliyun.com",
         "aliyuncdn.com",
@@ -206,7 +189,6 @@
       ]
     },
     {
-      "_comment": "BoardMix (博思白板 & 华为云存储 & 客服)",
       "domain_suffix": [
         "boardmix.cn",
         "boardmix.com",
