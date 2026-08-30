@@ -2,14 +2,30 @@
   "version": 4,
   "rules": [
     {
+      "_comment": "例如：Blacklist 拦截了 youtube.com，此处放行 accounts.youtube.com 以确保登录正常。",
+      "domain_suffix": [
+        "accounts.youtube.com"
+      ],
+      "domain_keyword": [
+        "accounts.youtube.com."
+      ]
+    },
+    {
+      "_comment": "OneDrive 个人版被 GFW 阻断域名 (强制高优先级走代理)",
       "domain": [
         "skyapi.onedrive.live.com",
-        "contentsync.onedrive.live.com",
+        "contentsync.onedrive.live.com"
+      ],
+      "domain_suffix": [
+        "onedrive.live.com"
+      ]
+    },
+    {
+      "_comment": "Developer Services (开发者服务)",
+      "domain": [
         "expo.fyi"
       ],
       "domain_suffix": [
-        "accounts.youtube.com",
-        "onedrive.live.com",
         "open-vsx.org",
         "visualstudio.com",
         "vsassets.io",
@@ -42,12 +58,22 @@
         "cloudfront.net",
         "android.com",
         "unpkg.com",
-        "jsdelivr.net",
+        "jsdelivr.net"
+      ]
+    },
+    {
+      "_comment": "Certificate Verification (证书 OCSP / CRL 验证)",
+      "domain_suffix": [
         "lencr.org",
         "identrust.com",
         "digicert.com",
         "sectigo.com",
-        "globalsign.com",
+        "globalsign.com"
+      ]
+    },
+    {
+      "_comment": "Kotlin Multiplatform & JetBrains Build Services",
+      "domain_suffix": [
         "jetbrains.com",
         "jetbrains.space",
         "jetbrains.team",
@@ -60,9 +86,6 @@
         "adoptium.net",
         "cocoapods.org",
         "gradle.com"
-      ],
-      "domain_keyword": [
-        "accounts.youtube.com."
       ]
     }
   ]
