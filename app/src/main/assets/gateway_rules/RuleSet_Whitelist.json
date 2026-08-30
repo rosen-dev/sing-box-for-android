@@ -2,38 +2,29 @@
   "version": 4,
   "rules": [
     {
-      "domain": [
-        "ai.google.dev",
-        "alkalicore-pa.clients6.google.com",
-        "waa-pa.clients6.google.com",
-        "mtalk.google.com",
-        "mtalk4.google.com",
-        "mtalk-staging.google.com",
-        "mtalk-dev.google.com",
-        "alt1-mtalk.google.com",
-        "alt2-mtalk.google.com",
-        "alt3-mtalk.google.com",
-        "alt4-mtalk.google.com",
-        "alt5-mtalk.google.com",
-        "alt6-mtalk.google.com",
-        "alt7-mtalk.google.com",
-        "alt8-mtalk.google.com",
-        "android.apis.google.com",
-        "device-provisioning.googleapis.com",
-        "firebaseinstallations.googleapis.com"
-      ],
+      "_comment": "Certificate & Connectivity (证书 & 连通性检查)",
       "domain_suffix": [
         "c.pki.goog",
         "ocsps.ssl.com",
         "x1.c.lencr.org",
         "time.android.com",
-        "connectivitycheck.gstatic.com",
+        "connectivitycheck.gstatic.com"
+      ]
+    },
+    {
+      "_comment": "Google Static Content (谷歌静态资源)",
+      "domain_suffix": [
         "fonts.googleapis.com",
         "fonts.gstatic.com",
         "mw1.gstatic.com",
         "ssl.gstatic.com",
         "encrypted-tbn0.gstatic.com",
-        "gstatic.com",
+        "gstatic.com"
+      ]
+    },
+    {
+      "_comment": "Google Cloud & APIs (谷歌云 & API)",
+      "domain_suffix": [
         "amazonaws.com",
         "storage.googleapis.com",
         "uc.appengine.google.com",
@@ -47,7 +38,12 @@
         "content.googleapis.com",
         "update.googleapis.com",
         "googleapis.com",
-        "gcs.googleapis.com",
+        "gcs.googleapis.com"
+      ]
+    },
+    {
+      "_comment": "Google Account & Sync (谷歌账户 & 同步)",
+      "domain_suffix": [
         "accounts.google.com",
         "accountsettingsmobile-pa.googleapis.com",
         "accountcapabilities-pa.googleapis.com",
@@ -60,14 +56,27 @@
         "androidplatformbackuprestore-pa.googleapis.com",
         "appsbackup-pa.googleapis.com",
         "chromesyncentities-pa.googleapis.com",
-        "chromesyncpasswords-pa.googleapis.com",
+        "chromesyncpasswords-pa.googleapis.com"
+      ],
+      "domain_keyword": [
+        "accounts.google"
+      ]
+    },
+    {
+      "_comment": "Firebase & Push Notifications (Firebase & 推送服务)",
+      "domain_suffix": [
         "fcmconnection.googleapis.com",
         "mtalk.google.com",
         "notifications-pa.googleapis.com",
         "notifications-ueeshp-pa.googleapis.com",
         "firebase-settings.crashlytics.com",
         "firebaseinstallations.googleapis.com",
-        "firebaselogging.googleapis.com",
+        "firebaselogging.googleapis.com"
+      ]
+    },
+    {
+      "_comment": "Misc Google Services (其他谷歌服务)",
+      "domain_suffix": [
         "safebrowsing.google.com",
         "safebrowsing.googleapis.com",
         "recaptcha.google.com",
@@ -84,12 +93,27 @@
         "playatoms-pa.googleapis.com",
         "support.google.com",
         "waa-pa.clients6.google.com",
-        "googletagmanager.com",
+        "googletagmanager.com"
+      ]
+    },
+    {
+      "_comment": "Google User Content (谷歌用户内容)",
+      "domain_suffix": [
         "googleusercontent.com",
         "lh3.google.com",
         "lh3.googleusercontent.com",
-        "storage.l.googleusercontent.com",
-        "googlevideo.com",
+        "storage.l.googleusercontent.com"
+      ]
+    },
+    {
+      "_comment": "Google Video (视频相关)",
+      "domain_suffix": [
+        "googlevideo.com"
+      ]
+    },
+    {
+      "_comment": "Google Drive, Cloud Search (云盘, 云搜索)",
+      "domain_suffix": [
         "cloudsearch.googleapis.com",
         "drive.files.ggpht.com",
         "ggpht.com",
@@ -97,16 +121,36 @@
         "drivefrontend-pa.googleapis.com",
         "subscriptionsmobile-pa.googleapis.com",
         "drive.google.com",
-        "drive-pa.googleapis.com",
+        "drive-pa.googleapis.com"
+      ]
+    },
+    {
+      "_comment": "Google Docs Suite (谷歌文档套件)",
+      "domain_suffix": [
         "books.google.com",
         "docs.google.com",
         "sheets.google.com",
-        "slides.google.com",
+        "slides.google.com"
+      ]
+    },
+    {
+      "_comment": "Gmail, Inbox (邮箱)",
+      "domain_suffix": [
         "gmail.com",
         "inbox.google.com",
-        "mail.google.com",
+        "mail.google.com"
+      ]
+    },
+    {
+      "_comment": "Google Subscriptions (订阅管理)",
+      "domain_suffix": [
         "subscriptionsfirstparty-pa.googleapis.com",
-        "subscriptionsmanagement-pa.googleapis.com",
+        "subscriptionsmanagement-pa.googleapis.com"
+      ]
+    },
+    {
+      "_comment": "Google Meet, Hangouts (会议, 聊天)",
+      "domain_suffix": [
         "addons-pa.googleapis.com",
         "auditrecording-pa.googleapis.com",
         "hangouts.google.com",
@@ -115,20 +159,40 @@
         "meetings.googleapis.com",
         "signaler-pa.clients6.google.com",
         "signaler-pa.googleapis.com",
-        "voilatile-pa.googleapis.com",
+        "voilatile-pa.googleapis.com"
+      ]
+    },
+    {
+      "_comment": "Google Contacts (联系人)",
+      "domain_suffix": [
         "contacts.google.com",
         "contactsui-pa.googleapis.com",
         "people-pa.clients6.google.com",
         "people-pa.googleapis.com",
         "peoplestack-pa.clients6.google.com",
         "peoplestack-pa.googleapis.com",
-        "peoplestackwebexperiments-pa.clients6.google.com",
+        "peoplestackwebexperiments-pa.clients6.google.com"
+      ]
+    },
+    {
+      "_comment": "Google Calendar, Tasks (日历, 任务)",
+      "domain_suffix": [
         "calendar.google.com",
         "calendarpushsubscription-pa.googleapis.com",
         "calendarsync-pa.googleapis.com",
-        "reminders-pa.googleapis.com",
+        "reminders-pa.googleapis.com"
+      ]
+    },
+    {
+      "_comment": "Google Photos (相册)",
+      "domain_suffix": [
         "photos.fife.usercontent.google.com",
-        "photosdata-pa.googleapis.com",
+        "photosdata-pa.googleapis.com"
+      ]
+    },
+    {
+      "_comment": "Google Maps, Earth, Location (地图, 地球, 位置)",
+      "domain_suffix": [
         "agnss.goog",
         "kh.google.com",
         "maps-api-ssl.google.com",
@@ -144,12 +208,22 @@
         "earth.google.com",
         "earth-pa.clients6.google.com",
         "earthstudio.googleapis.com",
-        "geo3d.googleapis.com",
+        "geo3d.googleapis.com"
+      ]
+    },
+    {
+      "_comment": "Google Input & Speech (输入法 & 语音)",
+      "domain_suffix": [
         "dl.google.com",
         "gboard-pa.googleapis.com",
         "speech.googleapis.com",
         "speechs3prot02-pa.googleapis.com",
-        "tenor.googleapis.com",
+        "tenor.googleapis.com"
+      ]
+    },
+    {
+      "_comment": "Other Google Apps (其他谷歌应用)",
+      "domain_suffix": [
         "one.google.com",
         "assistant.google.com",
         "embeddedassistant.googleapis.com",
@@ -157,7 +231,12 @@
         "keep.google.com",
         "kidsmanagement-pa.googleapis.com",
         "notes-pa.googleapis.com",
-        "translate.goog",
+        "translate.goog"
+      ]
+    },
+    {
+      "_comment": "Google AI (Gemini, Bard, DeepMind etc.)",
+      "domain_suffix": [
         "ai.google.com",
         "ai.google.dev",
         "ai.dev",
@@ -166,13 +245,39 @@
         "appsgenaiserver-pa.googleapis.com",
         "alkalicore-pa.clients6.google.com",
         "bard.google.com",
-        "gemini.google.com",
+        "gemini.google.com"
+      ],
+      "domain_keyword": [
+        "antigravity"
+      ]
+    },
+    {
+      "_comment": "> Google Generative Language API",
+      "domain_suffix": [
         "generativelanguage.googleapis.com",
         "geller-pa.googleapis.com",
-        "proactivebackend-pa.googleapis.com",
+        "proactivebackend-pa.googleapis.com"
+      ]
+    },
+    {
+      "_comment": "> Google AI Studio",
+      "domain": [
+        "ai.google.dev",
+        "alkalicore-pa.clients6.google.com",
+        "waa-pa.clients6.google.com"
+      ],
+      "domain_suffix": [
         "aistudio.google.com",
         "makersuite.google.com",
-        "generativeai.google",
+        "generativeai.google"
+      ],
+      "domain_keyword": [
+        "alkalimakersuite-pa.clients6.google.com"
+      ]
+    },
+    {
+      "_comment": "> Google NotebookLM",
+      "domain_suffix": [
         "notebooklm.google",
         "notebooklm.google.com",
         "deepmind.com",
@@ -181,133 +286,112 @@
         "cloud.google.com",
         "cloudresourcemanager.googleapis.com",
         "iam.googleapis.com",
-        "serviceusage.googleapis.com",
+        "serviceusage.googleapis.com"
+      ]
+    },
+    {
+      "_comment": "Grok AI",
+      "domain_suffix": [
         "grokipedia.com",
         "x.ai",
         "grok.com",
         "assets.grok.com",
         "ssff.grok.com",
-        "grokusercontent.com",
+        "grokusercontent.com"
+      ],
+      "domain_keyword": [
+        "grok"
+      ]
+    },
+    {
+      "_comment": "cloudflare （grok会用到它们的服务）",
+      "domain_suffix": [
         "cloudflare.com",
         "cloudflare.net",
-        "cloudflareinsights.com",
+        "cloudflareinsights.com"
+      ]
+    },
+    {
+      "_comment": "Grok AI 可能用到的其他第三方域名",
+      "domain_suffix": [
         "featureassets.org",
-        "mixpanel.com",
+        "mixpanel.com"
+      ]
+    },
+    {
+      "_comment": "Other AI/ML",
+      "domain_suffix": [
         "espresso-pa.clients6.google.com",
         "mobilemlaccelerationcompatibility.googleapis.com",
         "readaloud.googleapis.com",
         "taskassist-pa.clients6.google.com",
-        "taskassist-pa.googleapis.com",
+        "taskassist-pa.googleapis.com"
+      ]
+    },
+    {
+      "_comment": "Manus AI agent",
+      "domain_suffix": [
         "cloudfront.net",
         "amplitude.com",
         "butterfly-effect.dev",
         "plausible.io",
-        "gist.build",
+        "gist.build"
+      ],
+      "domain_keyword": [
+        "manus",
+        "amplitude"
+      ]
+    },
+    {
+      "_comment": "anthropic AI",
+      "domain_suffix": [
         "anthropic.com",
         "claude.ai",
         "claude.com",
         "bridge.claudeusercontent.com",
         "sanity.io",
-        "assets.claude.ai",
+        "assets.claude.ai"
+      ]
+    },
+    {
+      "_comment": "OpenAI & ChatGPT (Epidemic Sound AI 语义搜歌 & ChatGPT 官方生态)",
+      "domain_suffix": [
         "openai.com",
         "chatgpt.com",
         "oaistatic.com",
-        "oaiusercontent.com",
+        "oaiusercontent.com"
+      ]
+    },
+    {
+      "_comment": "Epidemic Sound (免版税音乐与音效库 - 全套高速代理)",
+      "domain_suffix": [
         "epidemicsound.com",
         "optimizely.com",
         "contentful.com",
         "recurly.com",
         "sentry-cdn.com",
         "cookiepro.com",
-        "gstatic.cn",
-        "figma.com",
-        "figma.net",
-        "figma.static.com",
-        "website-files.com",
-        "github.com",
-        "githubusercontent.com",
-        "gh-proxy.org",
-        "jetbrains.com",
-        "stackoverflow.com",
-        "pypi.org",
-        "pythonhosted.org",
-        "files.pythonhosted.org",
-        "anaconda.com",
-        "conda.io",
-        "android.com",
-        "maven.org",
-        "jitpack.io",
-        "gradle.org",
-        "services.gradle.org",
-        "tiangolo.com",
-        "uvicorn.org",
-        "pydantic.dev",
-        "docker.com",
-        "docker.io",
-        "swagger.io",
-        "pub.dev",
-        "flutter.dev",
-        "dart.dev",
-        "splunkcloud.com",
-        "api.statsig.com",
-        "code.gist.build",
-        "desktop-release.notion-static.com",
-        "exp.notion.so",
-        "identity.notion.so",
-        "img.notionusercontent.com",
-        "msgstore.www.notion.so",
-        "notion.com",
-        "notion.so",
-        "statsigapi.net",
-        "http-inputs-notion.splunkcloud.com",
-        "track.customer.io",
-        "prodregistryv2.org",
-        "vimeo.com",
-        "vimeocdn.com",
-        "analytics.google.com",
-        "app-measurement.com",
-        "ssl.google-analytics.com",
-        "google-analytics.com",
-        "gravatar.com",
-        "unpkg.com",
-        "jsdelivr.net",
-        "google.com",
-        "gvt1.com",
-        "gvt2.com",
-        "gvt3.com",
-        "fastly-edge.com",
-        "pki.goog",
-        "login.microsoftonline.com",
-        "login.microsoft.com",
-        "login.live.com",
-        "data.microsoft.com",
-        "fpt.microsoft.com",
-        "g.live.com",
-        "fpt.live.com",
-        "to-do.microsoft.com",
-        "to-do.office.com",
-        "to-do.live.com",
-        "office.com",
-        "officeapps.live.com",
-        "cloud.microsoft",
-        "azure.com",
-        "graph.microsoft.com",
-        "o15.officeredir.microsoft.com",
-        "config.edge.skype.com"
-      ],
-      "domain_keyword": [
-        "accounts.google",
-        "antigravity",
-        "alkalimakersuite-pa.clients6.google.com",
-        "grok",
-        "manus",
-        "amplitude",
-        "sentry.io",
-        "standsapp.org",
-        "datadoghq",
-        "google.com.",
-        "downsub",
-        "subtitle"
+        "gstatic.cn"
+      ]
+    },
+    {
+      "_comment": "According to Firebase FAQ https://firebase.google.com/docs/cloud-messaging/concept-options#messaging-ports-and-your-firewall",
+      "domain": [
+        "mtalk.google.com",
+        "mtalk4.google.com",
+        "mtalk-staging.google.com",
+        "mtalk-dev.google.com",
+        "alt1-mtalk.google.com",
+        "alt2-mtalk.google.com",
+        "alt3-mtalk.google.com",
+        "alt4-mtalk.google.com",
+        "alt5-mtalk.google.com",
+        "alt6-mtalk.google.com",
+        "alt7-mtalk.google.com",
+        "alt8-mtalk.google.com",
+        "android.apis.google.com",
+        "device-provisioning.googleapis.com",
+        "firebaseinstallations.googleapis.com"
       ],
       "ip_cidr": [
         "64.233.177.188/32",
@@ -335,7 +419,183 @@
         "172.253.122.188/32",
         "173.194.175.188/32",
         "173.194.218.188/32",
-        "209.85.233.188/32",
+        "209.85.233.188/32"
+      ]
+    },
+    {
+      "_comment": "Figma",
+      "domain_suffix": [
+        "figma.com",
+        "figma.net",
+        "figma.static.com",
+        "website-files.com"
+      ]
+    },
+    {
+      "_comment": "GitHub",
+      "domain_suffix": [
+        "github.com",
+        "githubusercontent.com",
+        "gh-proxy.org",
+        "jetbrains.com",
+        "stackoverflow.com"
+      ]
+    },
+    {
+      "_comment": "Python (PyPI & Conda)",
+      "domain_suffix": [
+        "pypi.org",
+        "pythonhosted.org",
+        "files.pythonhosted.org",
+        "anaconda.com",
+        "conda.io"
+      ]
+    },
+    {
+      "_comment": "Android & Gradle",
+      "domain_suffix": [
+        "android.com",
+        "maven.org",
+        "jitpack.io",
+        "gradle.org",
+        "services.gradle.org"
+      ]
+    },
+    {
+      "_comment": "FastAPI & Backend",
+      "domain_suffix": [
+        "tiangolo.com",
+        "uvicorn.org",
+        "pydantic.dev",
+        "docker.com",
+        "docker.io",
+        "swagger.io"
+      ]
+    },
+    {
+      "_comment": "Flutter & Dart",
+      "domain_suffix": [
+        "pub.dev",
+        "flutter.dev",
+        "dart.dev"
+      ]
+    },
+    {
+      "_comment": "Notion",
+      "domain_suffix": [
+        "splunkcloud.com",
+        "api.statsig.com",
+        "code.gist.build",
+        "desktop-release.notion-static.com",
+        "exp.notion.so",
+        "identity.notion.so",
+        "img.notionusercontent.com",
+        "msgstore.www.notion.so",
+        "notion.com",
+        "notion.so",
+        "statsigapi.net",
+        "http-inputs-notion.splunkcloud.com",
+        "track.customer.io",
+        "prodregistryv2.org",
+        "vimeo.com",
+        "vimeocdn.com"
+      ],
+      "domain_keyword": [
+        "sentry.io",
+        "standsapp.org"
+      ]
+    },
+    {
+      "_comment": "Analytics (分析)",
+      "domain_suffix": [
+        "analytics.google.com",
+        "app-measurement.com",
+        "ssl.google-analytics.com",
+        "google-analytics.com",
+        "gravatar.com"
+      ],
+      "domain_keyword": [
+        "datadoghq"
+      ]
+    },
+    {
+      "_comment": "公共资源 CDN (Figma & Claude 依赖)",
+      "domain_suffix": [
+        "unpkg.com",
+        "jsdelivr.net"
+      ]
+    },
+    {
+      "_comment": "General Fallback (通用后备)",
+      "domain_suffix": [
+        "google.com"
+      ],
+      "domain_keyword": [
+        "google.com."
+      ]
+    },
+    {
+      "_comment": "补充 Google CDN",
+      "domain_suffix": [
+        "gvt1.com",
+        "gvt2.com",
+        "gvt3.com"
+      ]
+    },
+    {
+      "_comment": "谷歌安全浏览（Safe Browsing）服务",
+      "domain_suffix": [
+        "fastly-edge.com"
+      ]
+    },
+    {
+      "_comment": "谷歌证书服务",
+      "domain_suffix": [
+        "pki.goog"
+      ]
+    },
+    {
+      "_comment": "字幕下载 subtitle downloader",
+      "domain_keyword": [
+        "downsub",
+        "subtitle"
+      ]
+    },
+    {
+      "_comment": "Account & Authentication (账号登录与认证)",
+      "domain_suffix": [
+        "login.microsoftonline.com",
+        "login.microsoft.com",
+        "login.live.com",
+        "data.microsoft.com",
+        "fpt.microsoft.com",
+        "g.live.com",
+        "fpt.live.com"
+      ]
+    },
+    {
+      "_comment": "Microsoft To Do (待办任务)",
+      "domain_suffix": [
+        "to-do.microsoft.com",
+        "to-do.office.com",
+        "to-do.live.com"
+      ]
+    },
+    {
+      "_comment": "Office 365 Cloud & Azure (Office 云协同与 Azure 控制台)",
+      "domain_suffix": [
+        "office.com",
+        "officeapps.live.com",
+        "cloud.microsoft",
+        "azure.com",
+        "graph.microsoft.com",
+        "o15.officeredir.microsoft.com",
+        "config.edge.skype.com"
+      ]
+    },
+    {
+      "_comment": "Google IP Ranges (Google 核心 IP 网段兜底，放在最末以避免对域名请求触发不必要的 DNS 解析)",
+      "ip_cidr": [
         "172.217.0.0/16",
         "142.250.0.0/15",
         "216.58.192.0/19",
