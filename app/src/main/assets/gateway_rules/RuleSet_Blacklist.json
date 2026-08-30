@@ -2,20 +2,17 @@
   "version": 4,
   "rules": [
     {
-      "_comment": "Google Play Services (部分服务，其余移至Timed)",
       "domain_suffix": [
         "play.googleapis.com",
         "play-fe.googleapis.com"
       ]
     },
     {
-      "_comment": "Google Search (谷歌搜索)",
       "domain": [
         "www.google.com"
       ]
     },
     {
-      "_comment": "YouTube (油管)",
       "domain_suffix": [
         "youtube.com",
         "m.youtube.com",
