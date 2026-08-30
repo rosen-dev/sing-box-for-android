@@ -1,0 +1,22 @@
+{
+  "version": 4,
+  "rules": [
+    {
+      "domain": [
+        "www.google.com"
+      ],
+      "domain_suffix": [
+        "play.googleapis.com",
+        "play-fe.googleapis.com",
+        "youtube.com",
+        "m.youtube.com",
+        "s.youtube.com",
+        "i.ytimg.com",
+        "yt3.ggpht.com",
+        "ytimg.com",
+        "youtubei.googleapis.com",
+        "youtube.googleapis.com"
+      ]
+    }
+  ]
+}
