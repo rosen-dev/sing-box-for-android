@@ -1,0 +1,69 @@
+{
+  "version": 4,
+  "rules": [
+    {
+      "domain": [
+        "skyapi.onedrive.live.com",
+        "contentsync.onedrive.live.com",
+        "expo.fyi"
+      ],
+      "domain_suffix": [
+        "accounts.youtube.com",
+        "onedrive.live.com",
+        "open-vsx.org",
+        "visualstudio.com",
+        "vsassets.io",
+        "vscode-assets.net",
+        "vscode-cdn.net",
+        "npmjs.org",
+        "nodejs.org",
+        "golang.org",
+        "go.dev",
+        "github.com",
+        "githubusercontent.com",
+        "githubassets.com",
+        "ctfassets.net",
+        "gradle.org",
+        "maven.org",
+        "apache.org",
+        "maven.google.com",
+        "jitpack.io",
+        "yarnpkg.com",
+        "expo.dev",
+        "exp.host",
+        "eascdn.net",
+        "supabase.com",
+        "supabase.co",
+        "googleapis.com",
+        "gstatic.com",
+        "dl.google.com",
+        "goog.com",
+        "npmjs.com",
+        "cloudfront.net",
+        "android.com",
+        "unpkg.com",
+        "jsdelivr.net",
+        "lencr.org",
+        "identrust.com",
+        "digicert.com",
+        "sectigo.com",
+        "globalsign.com",
+        "jetbrains.com",
+        "jetbrains.space",
+        "jetbrains.team",
+        "kotlinlang.org",
+        "kotl.in",
+        "objects.githubusercontent.com",
+        "googlesource.com",
+        "gvt1.com",
+        "foojay.io",
+        "adoptium.net",
+        "cocoapods.org",
+        "gradle.com"
+      ],
+      "domain_keyword": [
+        "accounts.youtube.com."
+      ]
+    }
+  ]
+}
