@@ -77,12 +77,9 @@ jobs:
 
       - name: Build arm64 Release APK
         run: |
-          # Generate a dummy keystore for signing the release APK
-          rm -f app/release.keystore
-          keytool -genkey -v -keystore app/release.keystore -alias dummy-alias -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=Dummy, OU=Dummy, O=Dummy, L=Dummy, S=Dummy, C=Dummy" -storepass dummypass -keypass dummypass
-          echo "KEYSTORE_PASS=dummypass" > local.properties
-          echo "ALIAS_NAME=dummy-alias" >> local.properties
-          echo "ALIAS_PASS=dummypass" >> local.properties
+          echo "KEYSTORE_PASS=gateway123456" > local.properties
+          echo "ALIAS_NAME=singbox-key" >> local.properties
+          echo "ALIAS_PASS=gateway123456" >> local.properties
           
           chmod +x gradlew
           ./gradlew assembleOtherRelease
