@@ -1,0 +1,155 @@
+payload:
+  # ==========================================================
+  # RuleSet for DIRECT Connections (直连规则)
+  # ==========================================================
+
+  # Local Network (本地网络)
+  - DOMAIN-SUFFIX,local
+  - IP-CIDR,10.0.0.0/8,no-resolve
+  - IP-CIDR,17.0.0.0/8,no-resolve
+  - IP-CIDR,100.64.0.0/10,no-resolve
+  - IP-CIDR,127.0.0.0/8,no-resolve
+  - IP-CIDR,172.16.0.0/12,no-resolve
+  - IP-CIDR,192.168.0.0/16,no-resolve
+  - IP-CIDR6,fe80::/10,no-resolve
+
+  ############ SpeedTest ############
+  # > Fast
+  - DOMAIN-SUFFIX,fast.com
+
+  # > Speedtest by Ookla
+  # - USER-AGENT,SpeedTest*
+  - DOMAIN-KEYWORD,speedtest
+  - DOMAIN-SUFFIX,ooklaserver.net
+  - DOMAIN,speed.dler.io
+
+  # > Speed Test by Cloudflare
+  - DOMAIN-SUFFIX,speed.cloudflare.com
+  ############ SpeedTest END ############
+
+  # Windows 连通性测试 (NCSI)
+  - DOMAIN-SUFFIX,dns.msftncsi.com
+  - DOMAIN-SUFFIX,msftncsi.com
+  - DOMAIN-SUFFIX,ipv6.msftncsi.com
+  - DOMAIN-SUFFIX,msftconnecttest.com
+  - DOMAIN-SUFFIX,ipv6.msftconnecttest.com
+  - DOMAIN-SUFFIX,oneocsp.microsoft.com
+  - DOMAIN-SUFFIX,crl.microsoft.com
+
+  # Microsoft & Windows Update (微软 & Windows 系统更新直连)
+  - DOMAIN-SUFFIX,msn.com
+  - DOMAIN-SUFFIX,arc.msn.com
+  - DOMAIN-SUFFIX,windowsupdate.com
+  - DOMAIN-SUFFIX,ctldl.windowsupdate.com
+  - DOMAIN-SUFFIX,slscr.update.microsoft.com
+  - DOMAIN-SUFFIX,dl.delivery.mp.microsoft.com
+  - DOMAIN-SUFFIX,update.microsoft.com
+  - DOMAIN-SUFFIX,windows.com
+  - DOMAIN-SUFFIX,windows.net
+  - DOMAIN-SUFFIX,mp.microsoft.com
+  - DOMAIN-SUFFIX,cfp.microsoft.com
+  - DOMAIN-SUFFIX,smartscreen.microsoft.com
+
+  # Microsoft 官网与技术支持 (直连)
+  - DOMAIN,www.microsoft.com
+  - DOMAIN,microsoft.com
+  - DOMAIN-SUFFIX,account.microsoft.com
+  - DOMAIN-SUFFIX,office.microsoft.com
+  - DOMAIN-SUFFIX,support.microsoft.com
+  - DOMAIN-SUFFIX,support.content.office.net
+  - DOMAIN-SUFFIX,appsforoffice.microsoft.com
+  - DOMAIN-SUFFIX,officeclient.microsoft.com
+  - DOMAIN-SUFFIX,uhf.microsoft.com
+  - DOMAIN-SUFFIX,go.microsoft.com
+  - DOMAIN-SUFFIX,edge.microsoft.com
+  - DOMAIN-SUFFIX,skype.com
+
+  # 微软国内可用静态资源 & CDN 边缘分发
+  - DOMAIN-SUFFIX,office.net
+  - DOMAIN-SUFFIX,static.microsoft
+  - DOMAIN-SUFFIX,onecdn.static.microsoft
+  - DOMAIN-SUFFIX,msftauth.net
+  - DOMAIN-SUFFIX,msauth.net
+  - DOMAIN-SUFFIX,sfx.ms
+  - DOMAIN-SUFFIX,svc.ms
+  - DOMAIN-SUFFIX,mem.gfx.ms
+  - DOMAIN-SUFFIX,azureedge.net
+  - DOMAIN-SUFFIX,azureedge.us
+  - DOMAIN-SUFFIX,azurefd.net
+  - DOMAIN-SUFFIX,msedge.net
+  - DOMAIN-SUFFIX,footprintdns.com
+  - DOMAIN-SUFFIX,nelreports.net
+
+  # --- OneDrive & OneNote 大陆极速直连 (45~80ms 超低延迟) ---
+  # OneDrive 数据与文档同步网关
+  - DOMAIN-SUFFIX,docs.live.net
+  - DOMAIN,api.onedrive.com
+  - DOMAIN,storage.live.com
+  - DOMAIN-SUFFIX,1drv.ms
+  - DOMAIN-SUFFIX,1drv.com
+  - DOMAIN-SUFFIX,onedrive.com
+  - DOMAIN-SUFFIX,sharepoint.com
+  - DOMAIN-SUFFIX,microsoftpersonalcontent.com
+  - DOMAIN-SUFFIX,odc.officeapps.live.com
+  - DOMAIN-SUFFIX,mrodevicemgr.officeapps.live.com
+  - DOMAIN-SUFFIX,recent.svc.cloud.microsoft
+  - DOMAIN-SUFFIX,roaming.svc.cloud.microsoft
+  - DOMAIN-SUFFIX,hubblemedia.svc.cloud.microsoft
+  - DOMAIN-SUFFIX,spoprod-a.akamaihd.net
+
+  # OneNote 笔记、画布分区与实时协作 (极速直连)
+  - DOMAIN-SUFFIX,onenote.com
+  - DOMAIN-SUFFIX,onenote.cloud.microsoft
+  - DOMAIN-SUFFIX,onenote.officeapps.live.com
+  - DOMAIN-SUFFIX,psg4-onenote.officeapps.live.com
+  - DOMAIN-SUFFIX,psg1-collabhubrtc.officeapps.live.com
+  - DOMAIN-SUFFIX,usc-collabrtc.officeapps.live.com
+  - DOMAIN-SUFFIX,augloop.office.com
+  - DOMAIN-SUFFIX,augloop.svc.cloud.microsoft
+  - DOMAIN-SUFFIX,onenoteonline.nel.measure.office.net
+  - DOMAIN-SUFFIX,oauth.officeapps.live.com
+
+  # 加入用于屏蔽微信和支付宝中短视频的私人DNS服务
+  - DOMAIN-SUFFIX,nextdns.io
+
+  # 加入小米笔记
+  - DOMAIN-SUFFIX,mi.com
+  - DOMAIN-SUFFIX,mi-img.com
+  - DOMAIN-SUFFIX,miui.com
+  - DOMAIN-SUFFIX,xiaomi.com
+
+  # 商米 (Sunmi)
+  - DOMAIN-SUFFIX,sunmi.com
+
+  # Deepseek
+  - DOMAIN-KEYWORD,deepseek
+  - DOMAIN-SUFFIX,deepseek.com
+  - DOMAIN-SUFFIX,deepseek.cn
+
+  # Tencent Cloud & Payment (腾讯云与支付)
+  - DOMAIN-SUFFIX,tencentcloudapi.com
+  - DOMAIN-SUFFIX,cloudbase.net
+  - DOMAIN-SUFFIX,tcb.qcloud.la
+  - DOMAIN-SUFFIX,myqcloud.com
+  - DOMAIN-SUFFIX,alipay.com
+  - DOMAIN-SUFFIX,tenpay.com
+  - DOMAIN,api.mch.weixin.qq.com
+
+  # Memfire (国内 Supabase 替代)
+  - DOMAIN-SUFFIX,memfiredb.com
+  - DOMAIN-SUFFIX,memfire.com
+
+  # Aliyun Maven & npm Mirror / 国内开发者服务
+  - DOMAIN-SUFFIX,aliyun.com
+  - DOMAIN-SUFFIX,aliyuncdn.com
+  - DOMAIN-SUFFIX,gitee.com
+  - DOMAIN-SUFFIX,gitee.io
+  - DOMAIN-SUFFIX,gitcode.com
+
+  # BoardMix (博思白板 & 华为云存储 & 客服)
+  - DOMAIN-SUFFIX,boardmix.cn
+  - DOMAIN-SUFFIX,boardmix.com
+  - DOMAIN-SUFFIX,bosyun.cn
+  - DOMAIN-SUFFIX,bosyun.net
+  - DOMAIN-SUFFIX,obs.cn-east-3.myhuaweicloud.com
+  - DOMAIN-SUFFIX,qiyukf.com
