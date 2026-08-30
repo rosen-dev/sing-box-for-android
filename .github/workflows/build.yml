@@ -1,9 +1,6 @@
 name: Build Android APK
 
 on:
-  push:
-    branches:
-      - feature/gateway
   workflow_dispatch:
 
 env:
