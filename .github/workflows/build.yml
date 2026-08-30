@@ -1,0 +1,95 @@
+name: Build Android APK
+
+on:
+  push:
+    branches:
+      - feature/gateway
+  workflow_dispatch:
+
+env:
+  SING_BOX_VERSION: "v1.13.21"
+
+jobs:
+  build:
+    name: Build sing-box for Android (arm64-v8a)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Android App
+        uses: actions/checkout@v4
+
+      - name: Cache libbox.aar (Smart Cache)
+        id: cache-libbox
+        uses: actions/cache@v4
+        with:
+          path: app/libs/libbox.aar
+          key: libbox-aar-${{ env.SING_BOX_VERSION }}-arm64-r28-v1
+
+      - name: Set up Go
+        if: steps.cache-libbox.outputs.cache-hit != 'true'
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.25'
+          check-latest: true
+
+      - name: Cache Go build cache & modules
+        if: steps.cache-libbox.outputs.cache-hit != 'true'
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/go/pkg/mod
+            ~/.cache/go-build
+          key: go-cache-${{ runner.os }}-${{ env.SING_BOX_VERSION }}
+          restore-keys: |
+            go-cache-${{ runner.os }}-
+
+      - name: Set up Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Setup Android NDK
+        if: steps.cache-libbox.outputs.cache-hit != 'true'
+        uses: nttld/setup-ndk@v1
+        id: setup-ndk
+        with:
+          ndk-version: r28
+          add-to-path: true
+
+      - name: Build libbox.aar via Official Makefile
+        if: steps.cache-libbox.outputs.cache-hit != 'true'
+        run: |
+          echo "Cache miss for libbox.aar, building from source (${SING_BOX_VERSION})..."
+          git clone --depth=1 --branch ${{ env.SING_BOX_VERSION }} https://github.com/SagerNet/sing-box.git /tmp/sing-box-core
+          cd /tmp/sing-box-core
+          export ANDROID_HOME=$ANDROID_SDK_ROOT
+          export ANDROID_NDK_HOME=${{ steps.setup-ndk.outputs.ndk-path }}
+          export ANDROID_NDK_ROOT=$ANDROID_NDK_HOME
+          make lib_install
+          make lib_android
+          mkdir -p $GITHUB_WORKSPACE/app/libs
+          cp libbox.aar $GITHUB_WORKSPACE/app/libs/libbox.aar
+          cd $GITHUB_WORKSPACE
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Build arm64 Release APK
+        run: |
+          # Generate a dummy keystore for signing the release APK
+          rm -f app/release.keystore
+          keytool -genkey -v -keystore app/release.keystore -alias dummy-alias -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=Dummy, OU=Dummy, O=Dummy, L=Dummy, S=Dummy, C=Dummy" -storepass dummypass -keypass dummypass
+          echo "KEYSTORE_PASS=dummypass" > local.properties
+          echo "ALIAS_NAME=dummy-alias" >> local.properties
+          echo "ALIAS_PASS=dummypass" >> local.properties
+          
+          chmod +x gradlew
+          ./gradlew assembleOtherRelease
+
+      - name: Upload Release APK Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: SFA-arm64-v8a-APK
+          path: app/build/outputs/apk/other/release/*.apk
+          retention-days: 30
