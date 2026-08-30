@@ -411,25 +411,7 @@ fun ProfilesCard(
                     },
                 )
 
-                ListItem(
-                    modifier = Modifier.clickable {
-                        onHideAddProfileSheet()
-                        showQRScanSheet = true
-                    },
-                    leadingContent = {
-                        Icon(
-                            imageVector = Icons.Default.QrCodeScanner,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.primary,
-                        )
-                    },
-                    headlineContent = {
-                        Text(stringResource(R.string.profile_add_scan_qr_code))
-                    },
-                    supportingContent = {
-                        Text(stringResource(R.string.scan_qr_code_description))
-                    },
-                )
+
 
                 ListItem(
                     modifier = Modifier.clickable {
