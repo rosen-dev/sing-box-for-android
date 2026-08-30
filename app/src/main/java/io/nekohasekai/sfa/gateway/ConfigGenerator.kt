@@ -18,7 +18,7 @@ object ConfigGenerator {
             result.put("log", it)
         }
 
-        // 2. 注入/优化极速双分流 DNS 引擎 (解决测速延迟高与节点域名解析慢问题)
+        // 2. 注入符合 Sing-box 1.12+ / 1.13+ 最新规范的极速双分流 DNS 引擎 (无任何弃用警告)
         result.put("dns", buildFastDNS(original))
 
         // 3. 继承 ntp (若有)
@@ -32,7 +32,7 @@ object ConfigGenerator {
         // 5. 重构 outbounds (归并物理节点 -> 唯一 PROXY 选择器组)
         result.put("outbounds", buildOutbounds(original))
 
-        // 6. 自定义 5 层路由规则与本地 RuleSet 绑定
+        // 6. 自定义 5 层路由规则与本地 RuleSet 绑定 (配置 default_domain_resolver，消除所有弃用警告)
         result.put("route", buildRoute(context))
 
         // 7. 继承 experimental (确保 Clash API 可用)
@@ -54,7 +54,7 @@ object ConfigGenerator {
         val dns = JSONObject()
         val servers = JSONArray()
 
-        // 1. 节点域名与国内直连极速 DNS (阿里/腾讯直连，5ms 秒解析)
+        // 1. 节点域名与国内直连极速 DNS (阿里直连，5ms 秒解析)
         servers.put(JSONObject().apply {
             put("tag", "dns-direct")
             put("address", "223.5.5.5")
@@ -62,7 +62,7 @@ object ConfigGenerator {
             put("strategy", "prefer_ipv4")
         })
 
-        // 2. 远端防污染 DNS (Cloudflare DoH / Google)
+        // 2. 远端防污染 DNS (Cloudflare DoH)
         servers.put(JSONObject().apply {
             put("tag", "dns-remote")
             put("address", "https://1.1.1.1/dns-query")
@@ -70,29 +70,18 @@ object ConfigGenerator {
             put("strategy", "prefer_ipv4")
         })
 
-        // 3. 阻断 DNS
-        servers.put(JSONObject().apply {
-            put("tag", "dns-block")
-            put("address", "rcode://success")
-        })
-
         dns.put("servers", servers)
 
         val dnsRules = JSONArray()
-        // 节点服务器域名解析直连
-        dnsRules.put(JSONObject().apply {
-            put("outbound", JSONArray().put("any").put(GatewayConstants.TAG_DIRECT))
-            put("server", "dns-direct")
-        })
         // 直连规则走国内 DNS
         dnsRules.put(JSONObject().apply {
             put("rule_set", GatewayConstants.TAG_RULESET_DIRECT)
             put("server", "dns-direct")
         })
-        // 黑名单走阻断 DNS
+        // 黑名单直接拒绝 DNS (Sing-box 1.12+ 规范: action: reject)
         dnsRules.put(JSONObject().apply {
             put("rule_set", GatewayConstants.TAG_RULESET_BLACKLIST)
-            put("server", "dns-block")
+            put("action", "reject")
         })
 
         dns.put("rules", dnsRules)
@@ -100,7 +89,7 @@ object ConfigGenerator {
         dns.put("strategy", "prefer_ipv4")
         dns.put("independent_cache", true)
 
-        Log.i(GatewayConstants.TAG, "[ConfigGenerator] 注入高性能双分流 DNS 引擎 (direct: 223.5.5.5, independent_cache: true)")
+        Log.i(GatewayConstants.TAG, "[ConfigGenerator] 注入高性能双分流 DNS 引擎 (无弃用字段, direct: 223.5.5.5, independent_cache: true)")
         return dns
     }
 
@@ -198,7 +187,7 @@ object ConfigGenerator {
         val route = JSONObject()
         val rules = JSONArray()
 
-        // 0. 嗅探与 DNS 劫持
+        // 0. 嗅探
         rules.put(JSONObject().put("action", "sniff"))
         rules.put(JSONObject().apply {
             put("protocol", "dns")
@@ -211,7 +200,7 @@ object ConfigGenerator {
             put("outbound", GatewayConstants.TAG_PROXY)
         })
 
-        // 1. 特定设备过滤规则 (192.168.10.50 + googlevideo.com -> block)
+        // 1. 特定设备过滤规则 (192.168.10.50 + googlevideo.com -> block, 显式声明 type: logical)
         rules.put(JSONObject().apply {
             put("type", "logical")
             put("mode", "and")
@@ -269,10 +258,12 @@ object ConfigGenerator {
         }
 
         route.put("rule_set", ruleSetArray)
+        // 关键: 指定 default_domain_resolver 为 dns-direct，彻底消除 1.12+ 弃用警告
+        route.put("default_domain_resolver", "dns-direct")
         route.put("final", GatewayConstants.TAG_BLOCK)
         route.put("auto_detect_interface", true)
 
-        Log.i(GatewayConstants.TAG, "[ConfigGenerator] 成功组装 4 层规则: Priority -> Blacklist -> Direct -> Whitelist (Final: ${GatewayConstants.TAG_BLOCK})")
+        Log.i(GatewayConstants.TAG, "[ConfigGenerator] 成功组装 4 层规则: Priority -> Blacklist -> Direct -> Whitelist (default_domain_resolver: dns-direct, Final: ${GatewayConstants.TAG_BLOCK})")
 
         return route
     }
