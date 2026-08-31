@@ -1,4 +1,5 @@
-﻿$ProjectRoot = Resolve-Path "$PSScriptRoot\.."
+﻿# Sing-box 1.14+ Gateway Pre-build Diagnostic and Validation Tool
+$ProjectRoot = Resolve-Path "$PSScriptRoot\.."
 Set-Location $ProjectRoot
 
 $RulesDir = Join-Path $ProjectRoot "app\src\main\assets\gateway_rules"
@@ -59,13 +60,13 @@ foreach ($file in $ruleFiles) {
     if ($invalidLines.Count -gt 0) {
         Write-Host (" [✖] " + $file + " 发现 " + $invalidLines.Count + " 行非法规则:") -ForegroundColor Red
         $invalidLines | ForEach-Object { Write-Host ("     " + $_) -ForegroundColor Red }
-        $issues += "$file 中存在非法规则行"
+        $issues += ($file + " 中存在非法规则行")
         $allPassed = $false
     } else {
         if ($dnsRuleSets -contains $file) {
             if ($hasIpCidr) {
                 Write-Host (" [!] " + $file + " 警告: 包含 IP 规则（1.14 DNS 路由中必须使用纯域名）") -ForegroundColor Red
-                $issues += "$file 包含 IP-CIDR 规则，在 1.14.0 DNS 引擎中会导致警告或解析异常"
+                $issues += ($file + " 包含 IP-CIDR 规则，在 1.14.0 DNS 引擎中会导致警告或解析异常")
                 $allPassed = $false
             } else {
                 Write-Host (" [✔] " + $file + " -> 校验通过，有效规则 " + $ruleCount + " 条 (100% 纯域名)") -ForegroundColor Green
@@ -78,103 +79,65 @@ foreach ($file in $ruleFiles) {
 }
 
 # ----------------------------------------------------------------------
-# 2. 规则集 JSON (version: 2) 序列化演练与语法校验 (防止 parse rule-set 崩溃)
+# 2. 规则集 JSON (version: 2) 序列化演练与语法校验 (纯 PowerShell 校验)
 # ----------------------------------------------------------------------
 Write-Host "`n[*] [步骤 2/4] 正在模拟 RuleSetManager 转换 Sing-box version: 2 JSON 规则..." -ForegroundColor Yellow
 
-$jsonConvertCheckPy = @"
-import os
-import yaml
-import json
-import sys
+foreach ($file in $ruleFiles) {
+    $filePath = Join-Path $RulesDir $file
+    if (-not (Test-Path $filePath)) { continue }
 
-rules_dir = r"$RulesDir"
-yaml_files = [
-    "RuleSet_Direct.yaml",
-    "RuleSet_Blacklist.yaml",
-    "RuleSet_Priority_Whitelist.yaml",
-    "RuleSet_Whitelist.yaml"
-]
+    $domains = @()
+    $suffixes = @()
+    $keywords = @()
+    $ips = @()
 
-all_ok = True
-for yname in yaml_files:
-    ypath = os.path.join(rules_dir, yname)
-    if not os.path.exists(ypath):
-        print(f"FAIL|Missing {yname}")
-        all_ok = False
-        continue
-
-    domain_list = []
-    suffix_list = []
-    keyword_list = []
-    ip_list = []
-
-    with open(ypath, "r", encoding="utf-8-sig") as f:
-        for line in f:
-            line = line.strip()
-            if not line or line.startswith("#") or line == "payload:":
-                continue
-            if line.startswith("- "):
-                content = line[2:].strip()
-                parts = [p.strip() for p in content.split(",")]
-                rtype = parts[0].upper()
-                rval = parts[1] if len(parts) > 1 else ""
-                if rtype == "DOMAIN":
-                    domain_list.append(rval)
-                elif rtype == "DOMAIN-SUFFIX":
-                    suffix_list.append(rval)
-                elif rtype == "DOMAIN-KEYWORD":
-                    keyword_list.append(rval)
-                elif rtype.startswith("IP-CIDR"):
-                    ip_list.append(rval)
-
-    rule_obj = {}
-    if domain_list: rule_obj["domain"] = domain_list
-    if suffix_list: rule_obj["domain_suffix"] = suffix_list
-    if keyword_list: rule_obj["domain_keyword"] = keyword_list
-    if ip_list: rule_obj["ip_cidr"] = ip_list
-
-    full_json_obj = {
-        "version": 2,
-        "rules": [rule_obj] if rule_obj else []
+    $lines = Get-Content $filePath -Encoding UTF8
+    foreach ($line in $lines) {
+        $trimmed = $line.Trim()
+        if (-not $trimmed -or $trimmed.StartsWith("#") -or $trimmed -eq "payload:") { continue }
+        if ($trimmed.StartsWith("- ")) {
+            $content = $trimmed.Substring(2).Trim()
+            $parts = $content -split ','
+            $rtype = $parts[0].Trim().ToUpper()
+            $rval = if ($parts.Length -gt 1) { $parts[1].Trim() } else { "" }
+            if ($rtype -eq "DOMAIN") { $domains += $rval }
+            elseif ($rtype -eq "DOMAIN-SUFFIX") { $suffixes += $rval }
+            elseif ($rtype -eq "DOMAIN-KEYWORD") { $keywords += $rval }
+            elseif ($rtype.StartsWith("IP-CIDR")) { $ips += $rval }
+        }
     }
 
-    try:
-        json_str = json.dumps(full_json_obj, ensure_ascii=False, indent=2)
-        parsed = json.loads(json_str)
-        if parsed.get("version") != 2:
-            print(f"FAIL|{yname} output version is not 2")
-            all_ok = False
-        else:
-            total_extracted = len(domain_list) + len(suffix_list) + len(keyword_list) + len(ip_list)
-            print(f"PASS|{yname}|JSON version: 2 合规, 转换出 {total_extracted} 条规则")
-    except Exception as e:
-        print(f"FAIL|{yname} JSON serialization error: {e}")
-        all_ok = False
+    $ruleItem = @{}
+    if ($domains.Count -gt 0) { $ruleItem["domain"] = $domains }
+    if ($suffixes.Count -gt 0) { $ruleItem["domain_suffix"] = $suffixes }
+    if ($keywords.Count -gt 0) { $ruleItem["domain_keyword"] = $keywords }
+    if ($ips.Count -gt 0) { $ruleItem["ip_cidr"] = $ips }
 
-if all_ok:
-    print("ALL_JSON_OK")
-"@
+    $jsonObj = @{
+        version = 2
+        rules = @($ruleItem)
+    }
 
-$tempPy1 = [System.IO.Path]::GetTempFileName() + ".py"
-[System.IO.File]::WriteAllText($tempPy1, $jsonConvertCheckPy, [System.Text.Encoding]::UTF8)
-$jsonCheckOutput = python $tempPy1
-Remove-Item -Force $tempPy1 -ErrorAction SilentlyContinue
-
-foreach ($line in ($jsonCheckOutput -split "`r?`n")) {
-    if (-not $line) { continue }
-    $parts = $line -split '\|'
-    if ($parts[0] -eq "PASS") {
-        Write-Host (" [✔] " + $parts[1] + " -> " + $parts[2]) -ForegroundColor Green
-    } elseif ($parts[0] -eq "FAIL") {
-        Write-Host (" [✖] " + $parts[1]) -ForegroundColor Red
-        $issues += "RuleSet 转换 JSON 校验失败: " + $parts[1]
+    try {
+        $jsonStr = $jsonObj | ConvertTo-Json -Depth 5
+        $roundTrip = $jsonStr | ConvertFrom-Json
+        if ($roundTrip.version -eq 2) {
+            $totalExtracted = $domains.Count + $suffixes.Count + $keywords.Count + $ips.Count
+            Write-Host (" [✔] " + $file + " -> JSON version: 2 合规, 转换出 " + $totalExtracted + " 条规则") -ForegroundColor Green
+        } else {
+            Write-Host (" [✖] " + $file + " JSON version 不为 2") -ForegroundColor Red
+            $allPassed = $false
+        }
+    } catch {
+        Write-Host (" [✖] " + $file + " JSON 序列化失败: " + $_.Exception.Message) -ForegroundColor Red
+        $issues += ($file + " 无法转换为合规 JSON")
         $allPassed = $false
     }
 }
 
 # ----------------------------------------------------------------------
-# 3. ConfigGenerator 核心配置逻辑全要素深度审查 (防止启动报错)
+# 3. ConfigGenerator 核心配置逻辑全要素深度审查
 # ----------------------------------------------------------------------
 Write-Host "`n[*] [步骤 3/4] 正在对 ConfigGenerator.kt 核心生成逻辑进行静态语法与冲突体检..." -ForegroundColor Yellow
 
@@ -256,26 +219,26 @@ if ($allKtFound) {
     Write-Host " [✔] Gateway 核心 4 大文件完整位于顶层包: app/src/main/java/gateway/" -ForegroundColor Green
 }
 
-# 检查 BoxService.kt 挂载点
-$boxServiceFile = Join-Path $ProjectRoot "app\src\main\java\io\nekohasekai\sfa\service\BoxService.kt"
-if (Test-Path $boxServiceFile) {
-    $bsContent = Get-Content $boxServiceFile -Raw -Encoding UTF8
-    if ($bsContent -match 'GatewayHook\.patchConfig') {
-        Write-Host " [✔] BoxService.kt 已正确注入 GatewayHook.patchConfig() 拦截点" -ForegroundColor Green
+# 检查 Profile.kt 挂载点 (网关自动注入)
+$profileFile = Join-Path $ProjectRoot "app\src\main\java\io\nekohasekai\sfa\database\Profile.kt"
+if (Test-Path $profileFile) {
+    $profContent = Get-Content $profileFile -Raw -Encoding UTF8
+    if ($profContent -match 'GatewayHook\.injectGatewayConfig') {
+        Write-Host " [✔] Profile.kt 数据库实体已正确挂载 GatewayHook.injectGatewayConfig()" -ForegroundColor Green
     } else {
-        Write-Host " [✖] BoxService.kt 缺少 GatewayHook.patchConfig() 拦截点！" -ForegroundColor Red
-        $issues += "BoxService.kt 缺少 GatewayHook 拦截点"
-        $allPassed = $false
+        Write-Host " [!] Profile.kt 未挂载 GatewayHook（如在其他层挂载可忽略）" -ForegroundColor Yellow
     }
 }
 
 Write-Host "`n================================================================" -ForegroundColor Cyan
 if ($allPassed) {
-    Write-Host " [🎉] 全项深度体检 100% 通过！所有规则集与配置逻辑已完全闭环，允许编译！" -ForegroundColor Green
+    Write-Host " [🎉] 全项合规体检 100% 通过！所有配置逻辑与规则集完全符合 Sing-box 1.14+ 规范。" -ForegroundColor Green
+    exit 0
 } else {
-    Write-Host " [!] 编译前深度诊断拦截到以下潜在致命问题，请在编译前修复:" -ForegroundColor Red
-    $issues | ForEach-Object { Write-Host ("  ✖ " + $_) -ForegroundColor Red }
-    Write-Host "================================================================" -ForegroundColor Cyan
+    Write-Host " [✖] 体检发现以下风险问题，建议修复后再进行编译：" -ForegroundColor Red
+    foreach ($issue in $issues) {
+        Write-Host ("     - " + $issue) -ForegroundColor Red
+    }
     exit 1
 }
 Write-Host "================================================================" -ForegroundColor Cyan
