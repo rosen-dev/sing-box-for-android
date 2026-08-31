@@ -383,29 +383,65 @@ payload:
   - DOMAIN-KEYWORD,downsub
   - DOMAIN-KEYWORD,subtitle
 
-  # --- Microsoft Cloud & Authentication (微软云服务、登录与待办任务) ---
-  # Account & Authentication (账号登录与认证)
-  - DOMAIN-SUFFIX,login.microsoftonline.com
-  - DOMAIN-SUFFIX,login.microsoft.com
-  - DOMAIN-SUFFIX,login.live.com
-  - DOMAIN-SUFFIX,data.microsoft.com
-  - DOMAIN-SUFFIX,fpt.microsoft.com
-  - DOMAIN-SUFFIX,g.live.com
-  - DOMAIN-SUFFIX,fpt.live.com
+  # ==========================================================
+  # --- Microsoft, Office 365, OneDrive & OneNote (全套走 PROXY) ---
+  # ==========================================================
 
-  # Microsoft To Do (待办任务)
-  - DOMAIN-SUFFIX,to-do.microsoft.com
-  - DOMAIN-SUFFIX,to-do.office.com
-  - DOMAIN-SUFFIX,to-do.live.com
+  # 1. Microsoft 核心、账号认证与专属顶级域 (Core, Identity & gTLD)
+  - DOMAIN-SUFFIX,microsoft               # 覆盖所有 *.microsoft 专属顶级域 (cloud.microsoft / static.microsoft 等)
+  - DOMAIN-SUFFIX,microsoft.com           # 覆盖所有 *.microsoft.com (login / account / graph / data / update 等)
+  - DOMAIN-SUFFIX,microsoftonline.com
+  - DOMAIN-SUFFIX,microsoftonline-p.com
+  - DOMAIN-SUFFIX,microsoftonline-p.net
+  - DOMAIN-SUFFIX,microsoftpersonalcontent.com
+  - DOMAIN-SUFFIX,microsoftstore.com
+  - DOMAIN-SUFFIX,msidentity.com
+  - DOMAIN-SUFFIX,msauth.net
+  - DOMAIN-SUFFIX,msftauth.net
 
-  # Office 365 Cloud & Azure (Office 云协同与 Azure 控制台)
+  # 2. Office 365, OneNote & OneDrive 生态 (Office, OneNote & OneDrive Sync)
   - DOMAIN-SUFFIX,office.com
-  - DOMAIN-SUFFIX,officeapps.live.com
-  - DOMAIN-SUFFIX,cloud.microsoft
+  - DOMAIN-SUFFIX,office365.com
+  - DOMAIN-SUFFIX,office.net
+  - DOMAIN-SUFFIX,onenote.com
+  - DOMAIN-SUFFIX,onenote.net
+  - DOMAIN-SUFFIX,onedrive.com
+  - DOMAIN-SUFFIX,sharepoint.com
+  - DOMAIN-SUFFIX,sharepointonline.com
+  - DOMAIN-SUFFIX,1drv.ms
+  - DOMAIN-SUFFIX,1drv.com
+
+  # 3. Live 账号体系与 Windows 云服务 (Live & Windows Ecosystem)
+  - DOMAIN-SUFFIX,live.com                # 覆盖所有 *.live.com (login / storage / officeapps / to-do 等)
+  - DOMAIN-SUFFIX,live.net                # 覆盖所有 *.live.net (docs.live.net 等)
+  - DOMAIN-SUFFIX,windows.com             # 覆盖所有 *.windows.com (wns / activity 等)
+  - DOMAIN-SUFFIX,windows.net             # 覆盖所有 *.windows.net (blob.core.windows.net 等)
+  - DOMAIN-SUFFIX,windowsupdate.com
+  - DOMAIN-SUFFIX,msn.com
+  - DOMAIN-SUFFIX,msftncsi.com
+  - DOMAIN-SUFFIX,msftconnecttest.com
+
+  # 4. Azure, Skype, 关键策略与基础网络 (Azure, Skype, Policy & CDN)
   - DOMAIN-SUFFIX,azure.com
-  - DOMAIN-SUFFIX,graph.microsoft.com
-  - DOMAIN-SUFFIX,o15.officeredir.microsoft.com
-  - DOMAIN-SUFFIX,config.edge.skype.com
+  - DOMAIN-SUFFIX,azure.net
+  - DOMAIN-SUFFIX,azureedge.net
+  - DOMAIN-SUFFIX,azureedge.us
+  - DOMAIN-SUFFIX,azurefd.net
+  - DOMAIN-SUFFIX,msedge.net
+  - DOMAIN-SUFFIX,skype.com
+  - DOMAIN-SUFFIX,skypeassets.com
+  - DOMAIN-SUFFIX,exp-tas.com             # 微软 TAS 关键实验与策略分发服务 (解决 OneNote 鉴权与脱机)
+  - DOMAIN-SUFFIX,appcenter.ms
+  - DOMAIN-SUFFIX,sfx.ms
+  - DOMAIN-SUFFIX,svc.ms
+  - DOMAIN-SUFFIX,gfx.ms
+  - DOMAIN-SUFFIX,msecnd.net
+  - DOMAIN-SUFFIX,msocdn.com
+  - DOMAIN-SUFFIX,nelreports.net
+  - DOMAIN-SUFFIX,footprintdns.com
+  - DOMAIN-SUFFIX,spoprod-a.akamaihd.net  # SharePoint Akamai 专用 CDN
+
+
 
   # Google IP Ranges (Google 核心 IP 网段兜底，放在最末以避免对域名请求触发不必要的 DNS 解析)
   - IP-CIDR,172.217.0.0/16             # 解决日志中被拦截的 172.217.11x.4 等 IP
