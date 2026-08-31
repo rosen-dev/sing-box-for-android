@@ -63,13 +63,14 @@ object ConfigGenerator {
             put("server", "223.5.5.5")
         })
 
-        // 2. 远端防污染 DNS (type: "https", server: "1.1.1.1", path: "/dns-query", domain_resolver: "dns-direct")
+        // 2. 远端防污染 DNS (type: "https", server: "1.1.1.1", path: "/dns-query", domain_resolver: "dns-direct", detour: "PROXY")
         servers.put(JSONObject().apply {
             put("tag", "dns-remote")
             put("type", "https")
             put("server", "1.1.1.1")
             put("path", "/dns-query")
             put("domain_resolver", "dns-direct")
+            put("detour", GatewayConstants.TAG_PROXY)
         })
 
         dns.put("servers", servers)
@@ -197,19 +198,35 @@ object ConfigGenerator {
             put("action", "hijack-dns")
         })
 
-        // 0.2 DNS 端口直通 (Port 53, 853)
+        // 0.2 远端 DNS 服务器 IP 直通走 PROXY
         rules.put(JSONObject().apply {
-            put("port", JSONArray().put(53).put(853))
+            put("ip_cidr", JSONArray().apply {
+                put("1.1.1.1/32")
+                put("1.0.0.1/32")
+                put("8.8.8.8/32")
+                put("8.8.4.4/32")
+            })
             put("outbound", GatewayConstants.TAG_PROXY)
         })
 
-        // 0.3 原生局域网与私有 IP 直连 (1.14.0 标准路由层实现)
+        // 0.3 国内直连 DNS 服务器 IP 走 direct
+        rules.put(JSONObject().apply {
+            put("ip_cidr", JSONArray().apply {
+                put("223.5.5.5/32")
+                put("223.6.6.6/32")
+                put("119.29.29.29/32")
+                put("180.184.1.1/32")
+            })
+            put("outbound", GatewayConstants.TAG_DIRECT)
+        })
+
+        // 0.4 原生局域网与私有 IP 直连 (1.14.0 标准路由层实现)
         rules.put(JSONObject().apply {
             put("ip_is_private", true)
             put("outbound", GatewayConstants.TAG_DIRECT)
         })
 
-        // 0.4 特殊直连网段 (如 Apple 17.0.0.0/8、运营商 CGNAT 100.64.0.0/10)
+        // 0.5 特殊直连网段 (如 Apple 17.0.0.0/8、运营商 CGNAT 100.64.0.0/10)
         rules.put(JSONObject().apply {
             put("ip_cidr", JSONArray().apply {
                 put("17.0.0.0/8")
