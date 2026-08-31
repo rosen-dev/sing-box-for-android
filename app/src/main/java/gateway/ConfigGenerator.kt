@@ -1,4 +1,4 @@
-package io.nekohasekai.sfa.gateway
+package gateway
 
 import android.content.Context
 import android.util.Log
@@ -18,7 +18,7 @@ object ConfigGenerator {
             result.put("log", it)
         }
 
-        // 2. 严格按 sing-box 1.12/1.13 新版 DNS 规范 (type: udp / type: https, 不对空 direct outbound 做冗余 detour)
+        // 2. 严格按 sing-box 1.14+ 现代 DNS 规范 (type: udp / type: https, 纯域名规则集路由)
         result.put("dns", buildFastDNS(original))
 
         // 3. 继承 ntp (若有)
@@ -32,16 +32,18 @@ object ConfigGenerator {
         // 5. 重构 outbounds (归并物理节点 -> 唯一 PROXY 选择器组)
         result.put("outbounds", buildOutbounds(original))
 
-        // 6. 自定义 5 层路由规则与本地 RuleSet 绑定 (声明 default_domain_resolver)
+        // 6. 自定义 5 层路由规则与本地 RuleSet 绑定 (声明 default_domain_resolver 与私有 IP 原生直连)
         result.put("route", buildRoute(context))
 
-        // 7. 继承 experimental (按 1.13.21 标准仅启用 cache_file 与 clash_api)
+        // 7. 继承 experimental (按 1.14.0 标准启用 store_dns 与 clash_api)
         val experimental = original.optJSONObject("experimental") ?: JSONObject()
         if (!experimental.has("clash_api")) {
             experimental.put("clash_api", JSONObject().put("external_controller", "127.0.0.1:9090"))
         }
         val cacheFile = experimental.optJSONObject("cache_file") ?: JSONObject()
         cacheFile.put("enabled", true)
+        cacheFile.put("store_dns", true) // 1.14.0 替代 store_rdrc
+        cacheFile.remove("store_rdrc")
         experimental.put("cache_file", cacheFile)
         result.put("experimental", experimental)
 
@@ -54,7 +56,7 @@ object ConfigGenerator {
         val dns = JSONObject()
         val servers = JSONArray()
 
-        // 1. 节点域名与国内直连极速 DNS (type: "udp", server: "223.5.5.5", 移除无意义的 detour to direct)
+        // 1. 国内直连极速 DNS (type: "udp", server: "223.5.5.5")
         servers.put(JSONObject().apply {
             put("tag", "dns-direct")
             put("type", "udp")
@@ -73,7 +75,7 @@ object ConfigGenerator {
         dns.put("servers", servers)
 
         val dnsRules = JSONArray()
-        // 直连规则走国内 DNS
+        // 直连规则走国内 DNS (1.14.0 规范: 规则集为纯域名，干净匹配无遗留 IP 警告)
         dnsRules.put(JSONObject().apply {
             put("rule_set", GatewayConstants.TAG_RULESET_DIRECT)
             put("server", "dns-direct")
@@ -201,6 +203,21 @@ object ConfigGenerator {
             put("outbound", GatewayConstants.TAG_PROXY)
         })
 
+        // 0.3 原生局域网与私有 IP 直连 (1.14.0 标准路由层实现)
+        rules.put(JSONObject().apply {
+            put("ip_is_private", true)
+            put("outbound", GatewayConstants.TAG_DIRECT)
+        })
+
+        // 0.4 特殊直连网段 (如 Apple 17.0.0.0/8、运营商 CGNAT 100.64.0.0/10)
+        rules.put(JSONObject().apply {
+            put("ip_cidr", JSONArray().apply {
+                put("17.0.0.0/8")
+                put("100.64.0.0/10")
+            })
+            put("outbound", GatewayConstants.TAG_DIRECT)
+        })
+
         // 1. 特定设备过滤规则 (192.168.10.50 + googlevideo.com -> reject)
         rules.put(JSONObject().apply {
             put("type", "logical")
@@ -212,7 +229,7 @@ object ConfigGenerator {
             put("action", "reject")
         })
 
-        // 2. 优先级白名单 (直接放行/直连) -> PROXY
+        // 2. 优先级白名单 -> PROXY
         rules.put(JSONObject().apply {
             put("rule_set", GatewayConstants.TAG_RULESET_PRIORITY_WHITELIST)
             put("outbound", GatewayConstants.TAG_PROXY)
@@ -224,7 +241,7 @@ object ConfigGenerator {
             put("action", "reject")
         })
 
-        // 4. 直连名单 -> direct
+        // 4. 直连名单 (纯域名) -> direct
         rules.put(JSONObject().apply {
             put("rule_set", GatewayConstants.TAG_RULESET_DIRECT)
             put("outbound", GatewayConstants.TAG_DIRECT)
@@ -243,10 +260,10 @@ object ConfigGenerator {
         val ruleSetArray = JSONArray()
 
         val ruleSetMappings = listOf(
-            GatewayConstants.TAG_RULESET_PRIORITY_WHITELIST to GatewayConstants.FILE_PRIORITY_WHITELIST,
-            GatewayConstants.TAG_RULESET_BLACKLIST to GatewayConstants.FILE_BLACKLIST,
-            GatewayConstants.TAG_RULESET_DIRECT to GatewayConstants.FILE_DIRECT,
-            GatewayConstants.TAG_RULESET_WHITELIST to GatewayConstants.FILE_WHITELIST,
+            GatewayConstants.TAG_RULESET_PRIORITY_WHITELIST to GatewayConstants.JSON_PRIORITY_WHITELIST,
+            GatewayConstants.TAG_RULESET_BLACKLIST to GatewayConstants.JSON_BLACKLIST,
+            GatewayConstants.TAG_RULESET_DIRECT to GatewayConstants.JSON_DIRECT,
+            GatewayConstants.TAG_RULESET_WHITELIST to GatewayConstants.JSON_WHITELIST,
         )
 
         for ((tag, fileName) in ruleSetMappings) {
@@ -264,7 +281,7 @@ object ConfigGenerator {
         route.put("final", GatewayConstants.TAG_BLOCK)
         route.put("auto_detect_interface", true)
 
-        Log.i(GatewayConstants.TAG, "[ConfigGenerator] 组装 5 层路由规则完成 (default_domain_resolver: dns-direct)")
+        Log.i(GatewayConstants.TAG, "[ConfigGenerator] 组装 5 层路由规则完成 (default_domain_resolver: dns-direct, ip_is_private: direct)")
 
         return route
     }
