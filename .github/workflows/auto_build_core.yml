@@ -1,0 +1,100 @@
+name: Auto Build sing-box Core (libbox.aar)
+
+on:
+  schedule:
+    - cron: '0 */12 * * *'  # Check every 12 hours
+  workflow_dispatch:
+    inputs:
+      force_version:
+        description: 'Target sing-box version tag (optional, e.g. v1.14.0, leave empty for latest official release)'
+        required: false
+        default: ''
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-release:
+    name: Build & Release libbox.aar
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Android App
+        uses: actions/checkout@v4
+
+      - name: Resolve Official sing-box Target Version
+        id: get-version
+        run: |
+          if [ -n "${{ github.event.inputs.force_version }}" ]; then
+            TAG="${{ github.event.inputs.force_version }}"
+            echo "Using manually specified version: $TAG"
+          else
+            TAG=$(curl -sL https://api.github.com/repos/SagerNet/sing-box/releases/latest | jq -r .tag_name)
+            echo "Latest official sing-box release is: $TAG"
+          fi
+          
+          if [ -z "$TAG" ] || [ "$TAG" = "null" ]; then
+            echo "Error: Failed to resolve official sing-box release tag"
+            exit 1
+          fi
+          
+          echo "target_version=$TAG" >> $GITHUB_OUTPUT
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.24'
+          check-latest: true
+
+      - name: Set up Java 17
+        uses: actions/setup-java@v5
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Setup Android NDK
+        uses: nttld/setup-ndk@v1
+        id: setup-ndk
+        with:
+          ndk-version: r28
+          add-to-path: true
+
+      - name: Build libbox.aar from Official Source
+        run: |
+          TARGET_VER="${{ steps.get-version.outputs.target_version }}"
+          echo "Building libbox.aar for ${TARGET_VER}..."
+          git clone --depth=1 --branch "${TARGET_VER}" https://github.com/SagerNet/sing-box.git /tmp/sing-box-core
+          cd /tmp/sing-box-core
+          export ANDROID_HOME=$ANDROID_SDK_ROOT
+          export ANDROID_NDK_HOME=${{ steps.setup-ndk.outputs.ndk-path }}
+          export ANDROID_NDK_ROOT=$ANDROID_NDK_HOME
+          make lib_install
+          make lib_android
+          mkdir -p $GITHUB_WORKSPACE/dist
+          cp libbox.aar $GITHUB_WORKSPACE/dist/libbox.aar
+          cd $GITHUB_WORKSPACE
+
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: libbox-aar-${{ steps.get-version.outputs.target_version }}
+          path: dist/libbox.aar
+
+      - name: Publish to GitHub Releases (Direct Download Link)
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TARGET_VER: ${{ steps.get-version.outputs.target_version }}
+        run: |
+          # 1. Update/Create Release for this specific version tag
+          gh release create "${TARGET_VER}" dist/libbox.aar \
+            --repo "${{ github.repository }}" \
+            --title "sing-box core ${TARGET_VER}" \
+            --notes "Automated build of libbox.aar from official SagerNet/sing-box ${TARGET_VER}" \
+            --clobber || true
+
+          # 2. Update/Create the persistent 'core-latest' Release for permanent direct downloading
+          gh release create "core-latest" dist/libbox.aar \
+            --repo "${{ github.repository }}" \
+            --title "sing-box core (Latest)" \
+            --notes "Latest official sing-box core build: ${TARGET_VER}" \
+            --clobber || true
