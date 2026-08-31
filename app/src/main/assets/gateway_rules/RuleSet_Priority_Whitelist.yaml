@@ -8,10 +8,6 @@ payload:
   - DOMAIN-SUFFIX,accounts.youtube.com
   - DOMAIN-KEYWORD,accounts.youtube.com. # 确保所有国家的accounts.youtube.com域名都可以访问
 
-  # --- OneDrive 个人版被 GFW 阻断域名 (强制高优先级走代理) ---
-  - DOMAIN-SUFFIX,onedrive.live.com
-  - DOMAIN,skyapi.onedrive.live.com
-  - DOMAIN,contentsync.onedrive.live.com
 
   # Developer Services (开发者服务)
   - DOMAIN-SUFFIX,open-vsx.org         # Open VSX 插件市场 (Antigravity IDE 默认插件源)
