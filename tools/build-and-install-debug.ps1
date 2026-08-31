@@ -44,17 +44,23 @@ Write-Host (" [+] 文件大小: " + $apkSizeMB + " MB") -ForegroundColor Green
 
 # 4. 检测并安装到连接的手机
 Write-Host "`n[*] 正在检测 ADB 连接设备..." -ForegroundColor Yellow
-$adbDevices = adb devices 2>$null
-$devices = $adbDevices | Where-Object { $_ -match '\tdevice$' }
+$adbLines = (adb devices 2>$null) -split "`r?`n"
+$targetDevice = $null
 
-if (-not $devices) {
+foreach ($line in $adbLines) {
+    if ($line -match '^([^\s]+)\s+device$') {
+        $targetDevice = $matches[1].Trim()
+        break
+    }
+}
+
+if (-not $targetDevice) {
     Write-Host "[!] 未检测到已连接的 ADB 手机设备。" -ForegroundColor Yellow
     Write-Host ("    您可手动将上述 APK 复制到手机进行安装。") -ForegroundColor Gray
     Write-Host "================================================================" -ForegroundColor Cyan
     exit 0
 }
 
-$targetDevice = ($devices[0] -split '\t')[0].Trim()
 Write-Host (" [+] 检测到测试手机: " + $targetDevice) -ForegroundColor Green
 Write-Host "[*] 正在推送到手机安装..." -ForegroundColor Cyan
 
