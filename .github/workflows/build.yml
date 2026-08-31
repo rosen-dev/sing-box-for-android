@@ -8,7 +8,7 @@ env:
 
 jobs:
   build-libbox:
-    name: Build libbox.aar (${{ env.SING_BOX_VERSION }})
+    name: Build libbox.aar v1.14.0
     runs-on: ubuntu-latest
 
     steps:
@@ -26,7 +26,7 @@ jobs:
         if: steps.cache-libbox.outputs.cache-hit != 'true'
         uses: actions/setup-go@v5
         with:
-          go-version: '1.25'
+          go-version: '1.24'
           check-latest: true
 
       - name: Cache Go build cache & modules
@@ -39,6 +39,13 @@ jobs:
           key: go-cache-${{ runner.os }}-${{ env.SING_BOX_VERSION }}
           restore-keys: |
             go-cache-${{ runner.os }}-
+
+      - name: Set up Java 17
+        if: steps.cache-libbox.outputs.cache-hit != 'true'
+        uses: actions/setup-java@v5
+        with:
+          distribution: 'temurin'
+          java-version: '17'
 
       - name: Setup Android NDK
         if: steps.cache-libbox.outputs.cache-hit != 'true'
@@ -69,4 +76,3 @@ jobs:
           name: libbox-aar-v1.14.0
           path: app/libs/libbox.aar
           compression-level: 1
-
