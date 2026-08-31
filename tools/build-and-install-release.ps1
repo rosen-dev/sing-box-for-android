@@ -1,6 +1,4 @@
-﻿$ErrorActionPreference = "Stop"
-
-$ProjectRoot = Resolve-Path "$PSScriptRoot\.."
+﻿$ProjectRoot = Resolve-Path "$PSScriptRoot\.."
 Set-Location $ProjectRoot
 
 $AarPath = Join-Path $ProjectRoot "app\libs\libbox.aar"
@@ -46,7 +44,7 @@ Write-Host (" [+] 文件大小: " + $apkSizeMB + " MB (已使用 release.keystor
 
 # 4. 检测并安装到连接的手机
 Write-Host "`n[*] 正在检测 ADB 连接设备..." -ForegroundColor Yellow
-$adbDevices = & adb devices 2>$null
+$adbDevices = adb devices 2>$null
 $devices = $adbDevices | Where-Object { $_ -match '\tdevice$' }
 
 if (-not $devices) {
@@ -60,11 +58,11 @@ $targetDevice = ($devices[0] -split '\t')[0].Trim()
 Write-Host (" [+] 检测到测试手机: " + $targetDevice) -ForegroundColor Green
 Write-Host "[*] 正在推送到手机安装..." -ForegroundColor Cyan
 
-& adb -s $targetDevice install -r -d "$($apkPath.FullName)"
+adb -s $targetDevice install -r -d "$($apkPath.FullName)"
 if ($LASTEXITCODE -eq 0) {
     Write-Host "[✔] 手机覆盖安装成功！" -ForegroundColor Green
     Write-Host "[*] 正在启动应用..." -ForegroundColor Cyan
-    & adb -s $targetDevice shell am start -n io.nekohasekai.sfa/io.nekohasekai.sfa.compose.MainActivity | Out-Null
+    adb -s $targetDevice shell am start -n io.nekohasekai.sfa/io.nekohasekai.sfa.compose.MainActivity | Out-Null
     Write-Host "[✔] Release 正式版应用已在前台启动就绪！" -ForegroundColor Green
 } else {
     Write-Host "[!] 安装失败，请检查手机是否允许 USB 安装应用权限。" -ForegroundColor Red
