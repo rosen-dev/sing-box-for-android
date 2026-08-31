@@ -1,10 +1,4 @@
-# ==============================================================================
-# build-and-install-release.ps1
-# 功能：本地编译正式签名版 Release (arm64-v8a) APK（开启代码混淆优化），并支持自动安装
-# ==============================================================================
-
-[Console]::OutputEncoding = [System.Text.Encoding]::UTF8
-$ErrorActionPreference = "Stop"
+﻿$ErrorActionPreference = "Stop"
 
 $ProjectRoot = Resolve-Path "$PSScriptRoot\.."
 Set-Location $ProjectRoot
@@ -33,7 +27,7 @@ if ($LASTEXITCODE -ne 0) {
 }
 
 $elapsed = [Math]::Round(((Get-Date) - $startTime).TotalSeconds, 1)
-Write-Host "`n[✔] Release 正式版编译成功！耗时: $elapsed 秒" -ForegroundColor Green
+Write-Host ("`n[✔] Release 正式版编译成功！耗时: " + $elapsed + " 秒") -ForegroundColor Green
 
 # 3. 查找生成的 Release APK
 $apkPath = Get-ChildItem -Path "$ProjectRoot\app\build\outputs\apk\other\release\*arm64-v8a*.apk" | Select-Object -First 1
@@ -47,8 +41,8 @@ if (-not $apkPath) {
 }
 
 $apkSizeMB = [Math]::Round($apkPath.Length / 1MB, 2)
-Write-Host "[+] 正式版安装包: $($apkPath.FullName)" -ForegroundColor Green
-Write-Host "[+] 文件大小: $apkSizeMB MB (已使用 release.keystore 正式签名)" -ForegroundColor Green
+Write-Host (" [+] 正式版安装包: " + $apkPath.FullName) -ForegroundColor Green
+Write-Host (" [+] 文件大小: " + $apkSizeMB + " MB (已使用 release.keystore 正式签名)") -ForegroundColor Green
 
 # 4. 检测并安装到连接的手机
 Write-Host "`n[*] 正在检测 ADB 连接设备..." -ForegroundColor Yellow
@@ -63,7 +57,7 @@ if (-not $devices) {
 }
 
 $targetDevice = ($devices[0] -split '\t')[0].Trim()
-Write-Host "[+] 检测到测试手机: $targetDevice" -ForegroundColor Green
+Write-Host (" [+] 检测到测试手机: " + $targetDevice) -ForegroundColor Green
 Write-Host "[*] 正在推送到手机安装..." -ForegroundColor Cyan
 
 & adb -s $targetDevice install -r -d "$($apkPath.FullName)"

@@ -1,10 +1,4 @@
-# ==============================================================================
-# build-and-install-debug.ps1
-# 功能：本地极速编译 Debug (arm64-v8a) 开发调试包，并自动推送到连接的手机安装与启动
-# ==============================================================================
-
-[Console]::OutputEncoding = [System.Text.Encoding]::UTF8
-$ErrorActionPreference = "Stop"
+﻿$ErrorActionPreference = "Stop"
 
 $ProjectRoot = Resolve-Path "$PSScriptRoot\.."
 Set-Location $ProjectRoot
@@ -33,7 +27,7 @@ if ($LASTEXITCODE -ne 0) {
 }
 
 $elapsed = [Math]::Round(((Get-Date) - $startTime).TotalSeconds, 1)
-Write-Host "`n[✔] Debug 编译成功！耗时: $elapsed 秒" -ForegroundColor Green
+Write-Host ("`n[✔] Debug 编译成功！耗时: " + $elapsed + " 秒") -ForegroundColor Green
 
 # 3. 查找生成的 Debug APK
 $apkPath = Get-ChildItem -Path "$ProjectRoot\app\build\outputs\apk\other\debug\*arm64-v8a-debug.apk" | Select-Object -First 1
@@ -47,8 +41,8 @@ if (-not $apkPath) {
 }
 
 $apkSizeMB = [Math]::Round($apkPath.Length / 1MB, 2)
-Write-Host "[+] 安装包位置: $($apkPath.FullName)" -ForegroundColor Green
-Write-Host "[+] 文件大小: $apkSizeMB MB" -ForegroundColor Green
+Write-Host (" [+] 安装包位置: " + $apkPath.FullName) -ForegroundColor Green
+Write-Host (" [+] 文件大小: " + $apkSizeMB + " MB") -ForegroundColor Green
 
 # 4. 检测并安装到连接的手机
 Write-Host "`n[*] 正在检测 ADB 连接设备..." -ForegroundColor Yellow
@@ -57,13 +51,13 @@ $devices = $adbDevices | Where-Object { $_ -match '\tdevice$' }
 
 if (-not $devices) {
     Write-Host "[!] 未检测到已连接的 ADB 手机设备。" -ForegroundColor Yellow
-    Write-Host "    您可手动将上述 APK 复制到手机进行安装。" -ForegroundColor Gray
+    Write-Host ("    您可手动将上述 APK 复制到手机进行安装。") -ForegroundColor Gray
     Write-Host "================================================================" -ForegroundColor Cyan
     exit 0
 }
 
 $targetDevice = ($devices[0] -split '\t')[0].Trim()
-Write-Host "[+] 检测到测试手机: $targetDevice" -ForegroundColor Green
+Write-Host (" [+] 检测到测试手机: " + $targetDevice) -ForegroundColor Green
 Write-Host "[*] 正在推送到手机安装..." -ForegroundColor Cyan
 
 & adb -s $targetDevice install -r -d "$($apkPath.FullName)"
