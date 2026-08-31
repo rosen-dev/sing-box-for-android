@@ -9,22 +9,30 @@ on:
         description: 'Target sing-box version tag (optional, e.g. v1.14.0, leave empty for latest official release)'
         required: false
         default: ''
+      force_build:
+        description: 'Force compilation even if release already exists'
+        required: false
+        type: boolean
+        default: false
 
 permissions:
   contents: write
 
 jobs:
   build-and-release:
-    name: Build & Release libbox.aar
+    name: Check & Build libbox.aar
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout Android App
         uses: actions/checkout@v4
 
-      - name: Resolve Official sing-box Target Version
+      - name: Resolve Official sing-box Version & Check Existence
         id: get-version
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
+          # 1. 获取目标版本 Tag
           if [ -n "${{ github.event.inputs.force_version }}" ]; then
             TAG="${{ github.event.inputs.force_version }}"
             echo "Using manually specified version: $TAG"
@@ -40,19 +48,38 @@ jobs:
           
           echo "target_version=$TAG" >> $GITHUB_OUTPUT
 
+          # 2. 检查本仓库中是否已存在该版本的 Release
+          FORCE_BUILD="${{ github.event.inputs.force_build }}"
+          if [ "$FORCE_BUILD" = "true" ]; then
+            echo "Force build requested. Proceeding with compilation..."
+            echo "skip_build=false" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
+          if gh release view "$TAG" --repo "${{ github.repository }}" >/dev/null 2>&1; then
+            echo "Release for $TAG already exists in this repository. Skipping compilation!"
+            echo "skip_build=true" >> $GITHUB_OUTPUT
+          else
+            echo "Release for $TAG does not exist yet. Proceeding with compilation..."
+            echo "skip_build=false" >> $GITHUB_OUTPUT
+          fi
+
       - name: Set up Go
+        if: steps.get-version.outputs.skip_build != 'true'
         uses: actions/setup-go@v5
         with:
           go-version: '1.24'
           check-latest: true
 
       - name: Set up Java 17
+        if: steps.get-version.outputs.skip_build != 'true'
         uses: actions/setup-java@v5
         with:
           distribution: 'temurin'
           java-version: '17'
 
       - name: Setup Android NDK
+        if: steps.get-version.outputs.skip_build != 'true'
         uses: nttld/setup-ndk@v1
         id: setup-ndk
         with:
@@ -60,6 +87,7 @@ jobs:
           add-to-path: true
 
       - name: Build libbox.aar from Official Source
+        if: steps.get-version.outputs.skip_build != 'true'
         run: |
           TARGET_VER="${{ steps.get-version.outputs.target_version }}"
           echo "Building libbox.aar for ${TARGET_VER}..."
@@ -75,12 +103,14 @@ jobs:
           cd $GITHUB_WORKSPACE
 
       - name: Upload Artifact
+        if: steps.get-version.outputs.skip_build != 'true'
         uses: actions/upload-artifact@v4
         with:
           name: libbox-aar-${{ steps.get-version.outputs.target_version }}
           path: dist/libbox.aar
 
       - name: Publish to GitHub Releases (Direct Download Link)
+        if: steps.get-version.outputs.skip_build != 'true'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TARGET_VER: ${{ steps.get-version.outputs.target_version }}
