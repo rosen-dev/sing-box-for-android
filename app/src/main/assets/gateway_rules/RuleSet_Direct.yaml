@@ -1,24 +1,18 @@
 payload:
   # ==========================================================
-  # RuleSet for DIRECT Connections (直连规则)
+  # RuleSet for DIRECT Connections (直连规则 - 纯域名规范)
   # ==========================================================
 
-  # Local Network (本地网络)
+  # Local Domain (本地与局域网域名)
   - DOMAIN-SUFFIX,local
-  - IP-CIDR,10.0.0.0/8,no-resolve
-  - IP-CIDR,17.0.0.0/8,no-resolve
-  - IP-CIDR,100.64.0.0/10,no-resolve
-  - IP-CIDR,127.0.0.0/8,no-resolve
-  - IP-CIDR,172.16.0.0/12,no-resolve
-  - IP-CIDR,192.168.0.0/16,no-resolve
-  - IP-CIDR6,fe80::/10,no-resolve
+  - DOMAIN-SUFFIX,lan
+  - DOMAIN-SUFFIX,home.arpa
 
   ############ SpeedTest ############
   # > Fast
   - DOMAIN-SUFFIX,fast.com
 
   # > Speedtest by Ookla
-  # - USER-AGENT,SpeedTest*
   - DOMAIN-KEYWORD,speedtest
   - DOMAIN-SUFFIX,ooklaserver.net
   - DOMAIN,speed.dler.io
@@ -27,11 +21,10 @@ payload:
   - DOMAIN-SUFFIX,speed.cloudflare.com
   ############ SpeedTest END ############
 
-
-  # 加入用于屏蔽微信和支付宝中短视频的私人DNS服务
+  # 私人 DNS 服务 (屏蔽微信和支付宝中短视频)
   - DOMAIN-SUFFIX,nextdns.io
 
-  # 加入小米笔记
+  # 小米生态
   - DOMAIN-SUFFIX,mi.com
   - DOMAIN-SUFFIX,mi-img.com
   - DOMAIN-SUFFIX,miui.com
@@ -40,7 +33,7 @@ payload:
   # 商米 (Sunmi)
   - DOMAIN-SUFFIX,sunmi.com
 
-  # Deepseek
+  # DeepSeek
   - DOMAIN-KEYWORD,deepseek
   - DOMAIN-SUFFIX,deepseek.com
   - DOMAIN-SUFFIX,deepseek.cn
