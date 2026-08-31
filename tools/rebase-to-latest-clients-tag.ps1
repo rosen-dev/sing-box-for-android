@@ -1,10 +1,4 @@
-# ==============================================================================
-# rebase-to-latest-clients-tag.ps1
-# 功能：自动检查官方 upstream 最新正式版 Tag，建立安全备份分支，并将自定义分支平滑变基
-# ==============================================================================
-
-[Console]::OutputEncoding = [System.Text.Encoding]::UTF8
-$ErrorActionPreference = "Stop"
+﻿$ErrorActionPreference = "Stop"
 
 $ProjectRoot = Resolve-Path "$PSScriptRoot\.."
 Set-Location $ProjectRoot
@@ -34,7 +28,6 @@ git fetch upstream --tags --quiet
 
 # 4. 获取当前版本与官方最新正式版 Tag
 $allTags = git tag -l --sort=-v:refname
-# 过滤掉包含 rc, alpha, beta, dev 的预发布标签，匹配类似于 1.14.0, 1.14.1 的正式版格式
 $officialTags = $allTags | Where-Object { $_ -match '^[0-9]+\.[0-9]+(\.[0-9]+)?$' }
 
 if (-not $officialTags) {
@@ -43,56 +36,62 @@ if (-not $officialTags) {
 }
 
 $latestTag = $officialTags[0]
-Write-Host "[+] 官方上游最新正式版 Tag 为: $latestTag" -ForegroundColor Green
+Write-Host ("[+] 官方上游最新正式版 Tag 为: " + $latestTag) -ForegroundColor Green
 
-# 检查当前分支
 $currentBranch = (git branch --show-current).Trim()
-Write-Host "[*] 当前所在分支: $currentBranch" -ForegroundColor Gray
+Write-Host ("[*] 当前所在分支: " + $currentBranch) -ForegroundColor Gray
 
 # 5. 检查是否已经是该 Tag
-$mergeBase = git merge-base HEAD "refs/tags/$latestTag"
-$tagCommit = (git rev-parse "refs/tags/$latestTag").Trim()
+$mergeBase = git merge-base HEAD ("refs/tags/" + $latestTag)
+$tagCommit = (git rev-parse ("refs/tags/" + $latestTag)).Trim()
 if ($mergeBase -eq $tagCommit) {
-    Write-Host "[+] 当前分支已经基于最新 Tag ($latestTag)，无需重复变基！" -ForegroundColor Green
+    Write-Host ("[+] 当前分支已经基于最新 Tag (" + $latestTag + ")，无需重复变基！") -ForegroundColor Green
+    
+    # 仍联动检查核心库版本
+    Write-Host "`n[*] 正在联动检查 Sing-box Go 核心库..." -ForegroundColor Yellow
+    & "$PSScriptRoot\update-sing-box-core.ps1"
+    
     Write-Host "================================================================" -ForegroundColor Cyan
     exit 0
 }
 
 # 6. 安全备份分支管理（智能滚动轮换，最多保留 3 个备份）
 $timestamp = Get-Date -Format "yyyyMMdd-HHmmss"
-$baseBackupName = "backup/gateway-before-$latestTag"
+$baseBackupName = "backup/gateway-before-" + $latestTag
 $backupBranch = $baseBackupName
 
-# 如果同名备份已存在，则追加时间戳后缀
-$existingBranches = git branch --list "$baseBackupName"
-if ($existingBranches) {
-    $backupBranch = "$baseBackupName-$timestamp"
+if (git branch --list "$baseBackupName") {
+    $backupBranch = $baseBackupName + "-" + $timestamp
 }
 
-Write-Host "[*] 正在创建安全备份分支: $backupBranch ..." -ForegroundColor Yellow
+Write-Host ("[*] 正在创建安全备份分支: " + $backupBranch + " ...") -ForegroundColor Yellow
 git branch $backupBranch
 
-# 自动滚动清理：若备份分支超过 3 个，删除最旧的一个
 $allBackups = git for-each-ref --sort=creatordate --format="%(refname:short)" refs/heads/backup/gateway-*
 if ($allBackups.Count -gt 3) {
     $toDelete = $allBackups[0]
-    Write-Host "[*] 正在清理较旧的历史备份分支: $toDelete ..." -ForegroundColor Gray
+    Write-Host ("[*] 正在清理较旧的历史备份分支: " + $toDelete + " ...") -ForegroundColor Gray
     git branch -D $toDelete 2>$null | Out-Null
 }
 
 # 7. 开始执行 Rebase
-Write-Host "[*] 正在将当前分支变基 (Rebase) 到官方 $latestTag ..." -ForegroundColor Cyan
+Write-Host ("[*] 正在将当前分支变基 (Rebase) 到官方 " + $latestTag + " ...") -ForegroundColor Cyan
 try {
     git rebase $latestTag
-    Write-Host "`n[✔] 变基成功！已顺利升级到官方正式版 Tag: $latestTag" -ForegroundColor Green
+    Write-Host ("`n[✔] 变基成功！已顺利升级到官方客户端 Tag: " + $latestTag) -ForegroundColor Green
+    Write-Host "================================================================" -ForegroundColor Cyan
+    
+    # 8. 自动联动更新 Go 核心库 (如果版本未变则自动跳过)
+    Write-Host "`n[*] 正在联动检查并同步 Sing-box Go 核心库..." -ForegroundColor Yellow
+    & "$PSScriptRoot\update-sing-box-core.ps1"
+
     Write-Host "================================================================" -ForegroundColor Cyan
     Write-Host "【后续指引】" -ForegroundColor Yellow
-    Write-Host "1. 推送更新到您的远程仓库:   git push origin $currentBranch --force-with-lease" -ForegroundColor White
-    Write-Host "2. 运行核心同步工具:         .\tools\update-sing-box-core.ps1" -ForegroundColor White
-    Write-Host "3. 编译并推送到手机:         .\tools\build-and-install-debug.ps1 或 .\tools\build-and-install-release.ps1" -ForegroundColor White
+    Write-Host ("1. 推送更新到您的远程仓库:   git push origin " + $currentBranch + " --force-with-lease") -ForegroundColor White
+    Write-Host "2. 编译并推送到手机安装:     .\tools\build-and-install-debug.ps1 或 .\tools\build-and-install-release.ps1" -ForegroundColor White
     Write-Host "----------------------------------------------------------------" -ForegroundColor Gray
     Write-Host "【万一需要回滚】执行以下命令即可秒级无损还原:" -ForegroundColor Gray
-    Write-Host "   git reset --hard $backupBranch" -ForegroundColor Gray
+    Write-Host ("   git reset --hard " + $backupBranch) -ForegroundColor Gray
     Write-Host "================================================================" -ForegroundColor Cyan
 } catch {
     Write-Host "`n[✖] 变基过程中检测到冲突或异常！" -ForegroundColor Red
