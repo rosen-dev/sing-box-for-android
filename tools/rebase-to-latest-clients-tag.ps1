@@ -4,7 +4,7 @@ $ProjectRoot = Resolve-Path "$PSScriptRoot\.."
 Set-Location $ProjectRoot
 
 Write-Host "================================================================" -ForegroundColor Cyan
-Write-Host "    Sing-box for Android 官方客户端 Tag 自动变基同步工具         " -ForegroundColor Cyan
+Write-Host "    Sing-box for Android 官方客户端主线代码自动变基同步工具       " -ForegroundColor Cyan
 Write-Host "================================================================" -ForegroundColor Cyan
 
 # 1. 检查工作区状态
@@ -22,30 +22,31 @@ if ($remotes -notcontains "upstream") {
     git remote add upstream https://github.com/SagerNet/sing-box-for-android.git
 }
 
-# 3. 拉取官方最新 Tags
-Write-Host "[*] 正在从官方上游拉取最新 Tags..." -ForegroundColor Yellow
-git fetch upstream --tags --quiet
+# 3. 拉取官方最新 main 分支与 tags
+Write-Host "[*] 正在从官方上游拉取最新主分支 (upstream/main)..." -ForegroundColor Yellow
+git fetch upstream main --quiet
 
-# 4. 获取当前版本与官方最新正式版 Tag
-$allTags = git tag -l --sort=-v:refname
-$officialTags = $allTags | Where-Object { $_ -match '^[0-9]+\.[0-9]+(\.[0-9]+)?$' }
-
-if (-not $officialTags) {
-    Write-Host "[!] 未找到有效的官方正式版 Tag，请检查网络连接。" -ForegroundColor Red
-    exit 1
+# 4. 获取当前版本与官方最新版本号
+$upstreamVersion = ""
+try {
+    $versionProps = git show upstream/main:version.properties
+    if ($versionProps -match 'VERSION_NAME=(.+)') {
+        $upstreamVersion = $matches[1].Trim()
+    }
+} catch {
+    $upstreamVersion = "latest"
 }
 
-$latestTag = $officialTags[0]
-Write-Host ("[+] 官方上游最新正式版 Tag 为: " + $latestTag) -ForegroundColor Green
+Write-Host ("[+] 官方上游最新正式版本为: " + $upstreamVersion + " (upstream/main)") -ForegroundColor Green
 
 $currentBranch = (git branch --show-current).Trim()
 Write-Host ("[*] 当前所在分支: " + $currentBranch) -ForegroundColor Gray
 
-# 5. 检查是否已经是该 Tag
-$mergeBase = git merge-base HEAD ("refs/tags/" + $latestTag)
-$tagCommit = (git rev-parse ("refs/tags/" + $latestTag)).Trim()
-if ($mergeBase -eq $tagCommit) {
-    Write-Host ("[+] 当前分支已经基于最新 Tag (" + $latestTag + ")，无需重复变基！") -ForegroundColor Green
+# 5. 检查是否已经是最新 commit
+$mergeBase = git merge-base HEAD upstream/main
+$upstreamCommit = (git rev-parse upstream/main).Trim()
+if ($mergeBase -eq $upstreamCommit) {
+    Write-Host ("[+] 当前分支已经基于官方最新主线 (" + $upstreamVersion + ")，无需重复变基！") -ForegroundColor Green
     
     # 仍联动检查核心库版本
     Write-Host "`n[*] 正在联动检查 Sing-box Go 核心库..." -ForegroundColor Yellow
@@ -57,7 +58,7 @@ if ($mergeBase -eq $tagCommit) {
 
 # 6. 安全备份分支管理（智能滚动轮换，最多保留 3 个备份）
 $timestamp = Get-Date -Format "yyyyMMdd-HHmmss"
-$baseBackupName = "backup/gateway-before-" + $latestTag
+$baseBackupName = "backup/gateway-before-" + $upstreamVersion
 $backupBranch = $baseBackupName
 
 if (git branch --list "$baseBackupName") {
@@ -75,10 +76,10 @@ if ($allBackups.Count -gt 3) {
 }
 
 # 7. 开始执行 Rebase
-Write-Host ("[*] 正在将当前分支变基 (Rebase) 到官方 " + $latestTag + " ...") -ForegroundColor Cyan
+Write-Host ("[*] 正在将当前分支变基 (Rebase) 到 upstream/main (" + $upstreamVersion + ") ...") -ForegroundColor Cyan
 try {
-    git rebase $latestTag
-    Write-Host ("`n[✔] 变基成功！已顺利升级到官方客户端 Tag: " + $latestTag) -ForegroundColor Green
+    git rebase upstream/main
+    Write-Host ("`n[✔] 变基成功！已顺利升级到官方最新主线: " + $upstreamVersion) -ForegroundColor Green
     Write-Host "================================================================" -ForegroundColor Cyan
     
     # 8. 自动联动更新 Go 核心库 (如果版本未变则自动跳过)
