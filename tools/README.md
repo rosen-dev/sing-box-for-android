@@ -1,4 +1,4 @@
-# Sing-box for Android 自动化维护与构建工具箱
+﻿# Sing-box for Android 自动化维护与构建工具箱
 
 本目录收纳了维护本项目自定义分流网关（Gateway）与跟进官方最新发布版所需的全套自动化工具。
 
