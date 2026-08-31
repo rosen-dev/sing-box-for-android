@@ -1,4 +1,4 @@
-name: Build Android APK
+name: Build libbox.aar
 
 on:
   workflow_dispatch:
@@ -7,8 +7,8 @@ env:
   SING_BOX_VERSION: "v1.14.0"
 
 jobs:
-  build:
-    name: Build sing-box for Android (arm64-v8a)
+  build-libbox:
+    name: Build libbox.aar (${{ env.SING_BOX_VERSION }})
     runs-on: ubuntu-latest
 
     steps:
@@ -40,12 +40,6 @@ jobs:
           restore-keys: |
             go-cache-${{ runner.os }}-
 
-      - name: Set up Java 17
-        uses: actions/setup-java@v5
-        with:
-          distribution: 'temurin'
-          java-version: '17'
-
       - name: Setup Android NDK
         if: steps.cache-libbox.outputs.cache-hit != 'true'
         uses: nttld/setup-ndk@v1
@@ -57,7 +51,7 @@ jobs:
       - name: Build libbox.aar via Official Makefile
         if: steps.cache-libbox.outputs.cache-hit != 'true'
         run: |
-          echo "Cache miss for libbox.aar, building from source (${SING_BOX_VERSION})..."
+          echo "Building libbox.aar from source (${SING_BOX_VERSION})..."
           git clone --depth=1 --branch ${{ env.SING_BOX_VERSION }} https://github.com/SagerNet/sing-box.git /tmp/sing-box-core
           cd /tmp/sing-box-core
           export ANDROID_HOME=$ANDROID_SDK_ROOT
@@ -76,21 +70,3 @@ jobs:
           path: app/libs/libbox.aar
           compression-level: 1
 
-      - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@v4
-
-      - name: Build arm64 Release APK
-        run: |
-          echo "KEYSTORE_PASS=gateway123456" > local.properties
-          echo "ALIAS_NAME=singbox-key" >> local.properties
-          echo "ALIAS_PASS=gateway123456" >> local.properties
-          
-          chmod +x gradlew
-          ./gradlew assembleOtherRelease
-
-      - name: Upload Release APK Artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: SFA-arm64-v8a-APK
-          path: app/build/outputs/apk/other/release/*arm64-v8a.apk
-          retention-days: 30
