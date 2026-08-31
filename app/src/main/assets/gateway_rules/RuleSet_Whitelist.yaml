@@ -396,8 +396,11 @@ payload:
   - DOMAIN-SUFFIX,microsoftpersonalcontent.com
   - DOMAIN-SUFFIX,microsoftstore.com
   - DOMAIN-SUFFIX,msidentity.com
+  - DOMAIN-SUFFIX,msftidentity.com
   - DOMAIN-SUFFIX,msauth.net
   - DOMAIN-SUFFIX,msftauth.net
+  - DOMAIN-SUFFIX,msauthimages.net
+  - DOMAIN-SUFFIX,msftauthimages.net
 
   # 2. Office 365, OneNote & OneDrive 生态 (Office, OneNote & OneDrive Sync)
   - DOMAIN-SUFFIX,office.com
@@ -410,8 +413,13 @@ payload:
   - DOMAIN-SUFFIX,sharepointonline.com
   - DOMAIN-SUFFIX,1drv.ms
   - DOMAIN-SUFFIX,1drv.com
+  - DOMAIN-SUFFIX,livefilestore.com       # OneDrive/OneNote 真实文件传输与笔记图片附件 CDN
+  - DOMAIN-SUFFIX,skydrive.com            # 微软旧版同步 API 及部分重定向接口
 
-  # 3. Live 账号体系与 Windows 云服务 (Live & Windows Ecosystem)
+  # 3. Microsoft Copilot & SSO (单点登录与智能助手)
+  - DOMAIN-SUFFIX,copilot.com             # 覆盖 ms-sso.copilot.com, copilot.com, api.copilot.com
+
+  # 4. Live 账号体系与 Windows 云服务 (Live & Windows Ecosystem)
   - DOMAIN-SUFFIX,live.com                # 覆盖所有 *.live.com (login / storage / officeapps / to-do 等)
   - DOMAIN-SUFFIX,live.net                # 覆盖所有 *.live.net (docs.live.net 等)
   - DOMAIN-SUFFIX,windows.com             # 覆盖所有 *.windows.com (wns / activity 等)
@@ -421,7 +429,7 @@ payload:
   - DOMAIN-SUFFIX,msftncsi.com
   - DOMAIN-SUFFIX,msftconnecttest.com
 
-  # 4. Azure, Skype, 关键策略与基础网络 (Azure, Skype, Policy & CDN)
+  # 5. Azure, Skype, 关键策略与基础网络 (Azure, Skype, Policy & CDN)
   - DOMAIN-SUFFIX,azure.com
   - DOMAIN-SUFFIX,azure.net
   - DOMAIN-SUFFIX,azureedge.net
@@ -435,8 +443,10 @@ payload:
   - DOMAIN-SUFFIX,sfx.ms
   - DOMAIN-SUFFIX,svc.ms
   - DOMAIN-SUFFIX,gfx.ms
+  - DOMAIN-SUFFIX,aka.ms                  # 微软官方短链服务 (App 内帮助、鉴权协议跳转)
   - DOMAIN-SUFFIX,msecnd.net
   - DOMAIN-SUFFIX,msocdn.com
+  - DOMAIN-SUFFIX,aspnetcdn.com           # 微软官方前端静态资源 CDN (部分 Webview 登录页需要)
   - DOMAIN-SUFFIX,nelreports.net
   - DOMAIN-SUFFIX,footprintdns.com
   - DOMAIN-SUFFIX,spoprod-a.akamaihd.net  # SharePoint Akamai 专用 CDN
