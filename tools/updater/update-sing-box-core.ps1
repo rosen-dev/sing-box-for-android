@@ -2,7 +2,7 @@
     [switch]$Force
 )
 
-$ProjectRoot = Resolve-Path "$PSScriptRoot\.."
+$ProjectRoot = Resolve-Path "$PSScriptRoot\..\.."
 Set-Location $ProjectRoot
 
 $DestDir = Join-Path $ProjectRoot "app\libs"
@@ -51,7 +51,7 @@ if ($Force) {
     
     # 自动联动执行配置兼容性诊断
     Write-Host "`n[*] 正在联动执行网关配置与规则集规范诊断..." -ForegroundColor Yellow
-    & "$PSScriptRoot\validate-gateway-config.ps1"
+    & "$PSScriptRoot\..\validate-gateway-config.ps1"
     exit 0
 } else {
     if ($localVersion) {
@@ -95,7 +95,7 @@ try {
 
     # 自动联动执行配置兼容性诊断
     Write-Host "`n[*] 正在联动执行网关配置与规则集规范诊断..." -ForegroundColor Yellow
-    & "$PSScriptRoot\validate-gateway-config.ps1"
+    & "$PSScriptRoot\..\validate-gateway-config.ps1"
 } catch {
     Write-Host "`n[✖] 核心库同步失败: $($_.Exception.Message)" -ForegroundColor Red
     Write-Host "【可能原因】" -ForegroundColor Yellow

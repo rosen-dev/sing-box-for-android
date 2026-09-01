@@ -8,7 +8,7 @@
 
 # ======================================================================
 
-$ProjectRoot = Resolve-Path "$PSScriptRoot\.."
+$ProjectRoot = Resolve-Path "$PSScriptRoot\..\.."
 
 Set-Location $ProjectRoot
 
