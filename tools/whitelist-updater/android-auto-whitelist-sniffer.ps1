@@ -62,7 +62,6 @@ $apiReady = $false
 
 try {
     $wc = New-Object System.Net.WebClient
-    $wc.Timeout = 1500
     $vJson = $wc.DownloadString("$apiBase/version")
     $apiReady = $true
     Write-Host " [✔] 成功连接手机 Sing-box 9090 控制端口 ($apiBase)" -ForegroundColor Green
@@ -71,7 +70,6 @@ try {
     try {
         $apiBase = "http://192.168.31.100:9090"
         $wc = New-Object System.Net.WebClient
-        $wc.Timeout = 1500
         $vJson = $wc.DownloadString("$apiBase/version")
         $apiReady = $true
         Write-Host " [✔] 成功通过局域网直连手机 Sing-box 9090 控制端口 ($apiBase)" -ForegroundColor Green

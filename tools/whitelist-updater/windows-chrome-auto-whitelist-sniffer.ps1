@@ -61,7 +61,6 @@ $apiReady = $false
 # 尝试 127.0.0.1:9090
 try {
     $wc = New-Object System.Net.WebClient
-    $wc.Timeout = 1500
     $vJson = $wc.DownloadString("$apiBase/version")
     $apiReady = $true
     Write-Host " [✔] 成功连接 Sing-box 9090 控制端口 ($apiBase)" -ForegroundColor Green
@@ -70,7 +69,6 @@ try {
     try {
         $apiBase = "http://${GatewayIp}:9090"
         $wc = New-Object System.Net.WebClient
-        $wc.Timeout = 1500
         $vJson = $wc.DownloadString("$apiBase/version")
         $apiReady = $true
         Write-Host " [✔] 成功通过局域网连接 Sing-box 9090 控制端口 ($apiBase)" -ForegroundColor Green
@@ -214,13 +212,20 @@ $seenConnIds = [System.Collections.Generic.HashSet[string]]::new()
 
 try {
     while ($true) {
-        # 检查用户是否按下了 Enter / 退出键
-        if ([System.Console]::KeyAvailable) {
-            $key = [System.Console]::ReadKey($true)
-            if ($key.Key -eq 'Enter' -or $key.Key -eq 'Escape' -or $key.KeyChar -in @('q', 'Q')) {
-                Write-Host "`n[*] 收到用户结束指令，正在生成本次嗅探汇总报告..." -ForegroundColor Yellow
-                break
+        # 检查用户是否按下了 Enter / 退出键 (安全适配重定向控制台)
+        $stopRequested = $false
+        try {
+            if ([System.Console]::KeyAvailable) {
+                $key = [System.Console]::ReadKey($true)
+                if ($key.Key -eq 'Enter' -or $key.Key -eq 'Escape' -or $key.KeyChar -in @('q', 'Q')) {
+                    $stopRequested = $true
+                }
             }
+        } catch {}
+
+        if ($stopRequested) {
+            Write-Host "`n[*] 收到用户结束指令，正在生成本次嗅探汇总报告..." -ForegroundColor Yellow
+            break
         }
 
         try {
