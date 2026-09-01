@@ -406,6 +406,7 @@ payload:
   - DOMAIN-SUFFIX,office.com
   - DOMAIN-SUFFIX,office365.com
   - DOMAIN-SUFFIX,office.net
+  - DOMAIN-SUFFIX,outlook.com             # 覆盖所有 *.outlook.com (Sticky Notes 便签同步的核心数据存储宿主)
   - DOMAIN-SUFFIX,onenote.com
   - DOMAIN-SUFFIX,onenote.net
   - DOMAIN-SUFFIX,onedrive.com
