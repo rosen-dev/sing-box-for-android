@@ -1,12 +1,13 @@
 ﻿# ======================================================================
 # 脚本名称: windows-chrome-auto-whitelist-sniffer.ps1
-# 脚本作用: 【Windows 浏览器端】打开指定网站，实时嗅探所有网络请求，捕获被拦截的域名/IP 并更新至白名单
+# 脚本作用: 【Windows 网页端】打开指定网站，实时嗅探所有网络请求，捕获被拦截的域名/IP 并更新至白名单
 # 存放位置: tools/whitelist-updater/
 # 核心特性:
-#   1. 自动等待用户输入要访问的目标网址 (支持任何域名/URL)
-#   2. 直接拉起浏览器打开网页 (依托 PC Clash Verge TUN 全局走手机网关 192.168.31.100:8899)
-#   3. 自动探测 9090 控制接口 (支持本地 127.0.0.1:9090 或局域网 192.168.31.100:9090)
-#   4. 用户可自由在网页中操作任意时长，按【Enter 回车键】或【Ctrl + C】结束并一键自愈白名单
+#   1. 环境检测：必须在用户的真实终端中运行 (以便拉起桌面浏览器与监听回车)
+#   2. 自动等待用户输入要访问的目标网址 (支持任何域名/URL)
+#   3. 直接拉起 Chrome/Edge 打开网页并自动注入 F12 调试面板
+#   4. 自动探测 9090 控制接口 (支持本地 127.0.0.1:9090 或局域网 192.168.31.100:9090)
+#   5. 用户可自由在网页中操作任意时长，按【Enter 回车键】或【Ctrl + C】结束并一键自愈白名单
 # ======================================================================
 
 param(
@@ -24,6 +25,28 @@ $ValidatorScript = Join-Path $ProjectRoot "tools\validator\validate-gateway-conf
 Write-Host "================================================================" -ForegroundColor Cyan
 Write-Host "   Sing-box Windows 网页访问嗅探与白名单自愈工具               " -ForegroundColor Cyan
 Write-Host "================================================================" -ForegroundColor Cyan
+
+# ----------------------------------------------------------------------
+# 0. 环境检测：必须在用户的真实交互式终端中运行 (以便拉起浏览器窗口与监听回车)
+# ----------------------------------------------------------------------
+$isInteractiveConsole = $true
+try {
+    if ([System.Console]::IsInputRedirected -or -not [System.Environment]::UserInteractive) {
+        $isInteractiveConsole = $false
+    }
+    $null = [System.Console]::KeyAvailable
+} catch {
+    $isInteractiveConsole = $false
+}
+
+if (-not $isInteractiveConsole) {
+    Write-Host "`n[!] 提示: windows-chrome-auto-whitelist-sniffer.ps1 必须在您的真实终端中运行！" -ForegroundColor Yellow
+    Write-Host "    原因: 本工具需要拉起您桌面的 Chrome 浏览器图形窗口，并实时监听键盘回车键。" -ForegroundColor DarkGray
+    Write-Host "    👉 操作: 请在 Android Studio / IDE 下方的【Terminal 终端】中直接运行:" -ForegroundColor Cyan
+    Write-Host "       .\tools\whitelist-updater\windows-chrome-auto-whitelist-sniffer.ps1" -ForegroundColor Green
+    Write-Host "================================================================`n" -ForegroundColor Cyan
+    exit 0
+}
 
 # ----------------------------------------------------------------------
 # 1. 交互式获取目标网站 URL
@@ -187,16 +210,15 @@ foreach ($p in $chromePaths) {
 Write-Host "`n[*] 正在启动浏览器访问 $Url 并自动开启【F12 开发者工具箱】..." -ForegroundColor Yellow
 
 $browserArgs = @(
-    "--auto-open-devtools-for-tabs", # 自动拉起 F12 DevTools 开发者工具箱
+    "--auto-open-devtools-for-tabs",
     $Url
 )
 
 if ($browserExe) {
     Write-Host (" [+] 成功调起浏览器: " + (Split-Path $browserExe -Leaf) + " (已自动注入 F12 调试面板)") -ForegroundColor Gray
     Start-Process -FilePath $browserExe -ArgumentList $browserArgs
-    Start-Process cmd.exe -ArgumentList @("/c", "start", "", $Url) -WindowStyle Hidden
 } else {
-    Start-Process cmd.exe -ArgumentList @("/c", "start", "", $Url) -WindowStyle Hidden
+    Start-Process $Url
 }
 
 # ----------------------------------------------------------------------
