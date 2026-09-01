@@ -187,7 +187,7 @@ foreach ($file in $ruleFiles) {
 Write-Host "`n[*] [步骤 3/5] 正在执行官方 Migration & Deprecated 版本感知规则矩阵审查..." -ForegroundColor Yellow
 
 # 联动同步检查 Migration & Deprecated 规范 (文档无变动秒级跳过)
-$syncScript = Join-Path $PSScriptRoot "updater\sync-rules-matrix.ps1"
+$syncScript = Join-Path $PSScriptRoot "sync-rules-matrix.ps1"
 if (Test-Path $syncScript) {
     & $syncScript
 }
@@ -274,8 +274,15 @@ if (-not (Test-Path $configGenFile)) {
 Write-Host "`n[*] [步骤 4/5] 正在调用官方原厂 sing-box.exe 执行权威 Schema 与配置自检..." -ForegroundColor Yellow
 
 if (-not (Test-Path $CliExe)) {
-    Write-Host " [!] 未在 tools/bin/ 找到 sing-box.exe，跳过原厂二进制自检。" -ForegroundColor Yellow
-    Write-Host "     (提示: 可随时运行 .\tools\validator\download-sing-box-cli.ps1 一键同步官方原厂 CLI 工具)" -ForegroundColor Gray
+    Write-Host " [!] 未在 tools/bin/ 找到 sing-box.exe，正在尝试自动拉取配套原厂 CLI..." -ForegroundColor Yellow
+    $cliScript = Join-Path $PSScriptRoot "download-sing-box-cli.ps1"
+    if (Test-Path $cliScript) {
+        & $cliScript
+    }
+}
+
+if (-not (Test-Path $CliExe)) {
+    Write-Host " [!] 无法获取 sing-box.exe，跳过原厂二进制自检。" -ForegroundColor Yellow
 } else {
     # 构造与 ConfigGenerator 100% 拓扑等价的模拟完整配置
     $mockConfig = @{
