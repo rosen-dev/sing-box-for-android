@@ -275,7 +275,7 @@ Write-Host "`n[*] [步骤 4/5] 正在调用官方原厂 sing-box.exe 执行权�
 
 if (-not (Test-Path $CliExe)) {
     Write-Host " [!] 未在 tools/bin/ 找到 sing-box.exe，跳过原厂二进制自检。" -ForegroundColor Yellow
-    Write-Host "     (提示: 可随时运行 .\tools\download-sing-box-cli.ps1 一键同步官方原厂 CLI 工具)" -ForegroundColor Gray
+    Write-Host "     (提示: 可随时运行 .\tools\updater\download-sing-box-cli.ps1 一键同步官方原厂 CLI 工具)" -ForegroundColor Gray
 } else {
     # 构造与 ConfigGenerator 100% 拓扑等价的模拟完整配置
     $mockConfig = @{
