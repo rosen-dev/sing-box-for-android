@@ -194,8 +194,9 @@ $browserArgs = @(
 if ($browserExe) {
     Write-Host (" [+] 成功调起浏览器: " + (Split-Path $browserExe -Leaf) + " (已自动注入 F12 调试面板)") -ForegroundColor Gray
     Start-Process -FilePath $browserExe -ArgumentList $browserArgs
+    Start-Process cmd.exe -ArgumentList @("/c", "start", "", $Url) -WindowStyle Hidden
 } else {
-    Start-Process $Url
+    Start-Process cmd.exe -ArgumentList @("/c", "start", "", $Url) -WindowStyle Hidden
 }
 
 # ----------------------------------------------------------------------
