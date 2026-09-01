@@ -48,51 +48,41 @@ if (-not ($Url.StartsWith("http://") -or $Url.StartsWith("https://"))) {
 Write-Host "`n[✔] 目标网站设定 -> $Url" -ForegroundColor Green
 
 # ----------------------------------------------------------------------
-# 2. 打通网络环境与 ADB 端口映射 (8899 代理端口 + 9090 REST API)
+# 2. 探测 Sing-box 9090 Clash REST API 通信
 # ----------------------------------------------------------------------
-Write-Host "`n[*] 正在打通 8899 代理端口与 9090 控制端口映射 (adb forward)..." -ForegroundColor Yellow
+Write-Host "`n[*] 正在检测 Sing-box 9090 控制端口通信..." -ForegroundColor Yellow
 $adb = "$env:LOCALAPPDATA\Android\Sdk\platform-tools\adb.exe"
 if (-not (Test-Path $adb)) { $adb = "adb" }
-
 & $adb forward tcp:9090 tcp:9090 2>$null
-& $adb forward tcp:$ProxyPort tcp:8899 2>$null
 
-$testApi = "http://127.0.0.1:9090/version"
+$apiBase = "http://127.0.0.1:9090"
 $apiReady = $false
 try {
     $wc = New-Object System.Net.WebClient
     $wc.Timeout = 2000
-    $vJson = $wc.DownloadString($testApi)
+    $vJson = $wc.DownloadString("$apiBase/version")
     $apiReady = $true
     Write-Host " [✔] Sing-box 9090 Clash REST API 通信正常！" -ForegroundColor Green
 } catch {
-    Write-Host " [!] 提示: 无法连接到 9090 端口。若使用手机网关，请确保手机 Sing-box 已启动连接。" -ForegroundColor Yellow
-}
-
-# ----------------------------------------------------------------------
-# 3. 查找 Windows Chrome 浏览器路径
-# ----------------------------------------------------------------------
-$chromePaths = @(
-    "C:\Program Files\Google\Chrome\Application\chrome.exe",
-    "C:\Program Files (x86)\Google\Chrome\Application\chrome.exe",
-    ([System.Environment]::ExpandEnvironmentVariables("%LOCALAPPDATA%\Google\Chrome\Application\chrome.exe")),
-    "C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe",
-    "C:\Program Files\Microsoft\Edge\Application\msedge.exe"
-)
-
-$browserExe = $null
-foreach ($p in $chromePaths) {
-    if (Test-Path $p) {
-        $browserExe = $p
-        break
+    # 尝试局域网直连手机 IP
+    try {
+        $apiBase = "http://192.168.31.100:9090"
+        $wc = New-Object System.Net.WebClient
+        $wc.Timeout = 2000
+        $vJson = $wc.DownloadString("$apiBase/version")
+        $apiReady = $true
+        Write-Host " [✔] 通过局域网 192.168.31.100:9090 连接 Sing-box 正常！" -ForegroundColor Green
+    } catch {
+        Write-Host " [!] 提示: 无法连接到 9090 控制端口。请确保手机 Sing-box 已启动。" -ForegroundColor Yellow
+        $apiBase = "http://127.0.0.1:9090"
     }
 }
 
-if (-not $browserExe) {
-    Write-Host "[!] 未找到 Chrome/Edge 浏览器路径，将使用默认系统命令拉起。" -ForegroundColor Yellow
-} else {
-    Write-Host (" [+] 找到浏览器: " + (Split-Path $browserExe -Leaf)) -ForegroundColor Gray
-}
+# ----------------------------------------------------------------------
+# 3. 直接拉起默认浏览器访问目标网站 (PC 已全局走手机网关)
+# ----------------------------------------------------------------------
+Write-Host "`n[*] 正在启动浏览器打开 $Url ..." -ForegroundColor Yellow
+Start-Process $Url
 
 # ----------------------------------------------------------------------
 # 4. 读取本地已有白名单规则
@@ -182,19 +172,7 @@ function Resolve-IpPtrDomain([string]$ip) {
 }
 
 # ----------------------------------------------------------------------
-# 6. 启动 Chrome 访问目标网址 (走 8899 代理)
-# ----------------------------------------------------------------------
-Write-Host "`n[*] 正在启动浏览器访问 $Url 并接入 Sing-box 代理..." -ForegroundColor Yellow
-$proxyArg = "--proxy-server=http://127.0.0.1:$ProxyPort"
-
-if ($browserExe) {
-    Start-Process -FilePath $browserExe -ArgumentList @($proxyArg, "--ignore-certificate-errors", $Url)
-} else {
-    Start-Process $Url
-}
-
-# ----------------------------------------------------------------------
-# 7. 实时捕获与记录所有网络访问
+# 6. 实时捕获与记录所有网络访问
 # ----------------------------------------------------------------------
 Write-Host "`n================================================================" -ForegroundColor Cyan
 Write-Host "  正在实时记录该网站触发的所有网络请求... (持续 $ListenSeconds 秒)" -ForegroundColor Yellow
@@ -210,7 +188,7 @@ try {
         try {
             $wc = New-Object System.Net.WebClient
             $wc.Encoding = [System.Text.Encoding]::UTF8
-            $connRaw = $wc.DownloadString("http://127.0.0.1:9090/connections")
+            $connRaw = $wc.DownloadString("$apiBase/connections")
             $connData = $connRaw | ConvertFrom-Json
 
             $allConns = @()
