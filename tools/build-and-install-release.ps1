@@ -10,7 +10,7 @@ Write-Host "================================================================" -F
 # 1. 检查核心库是否存在
 if (-not (Test-Path $AarPath)) {
     Write-Host "[!] 未检测到 app/libs/libbox.aar 核心库！" -ForegroundColor Red
-    Write-Host "[*] 请先运行 .\tools\update-sing-box-core.ps1 下载最新核心库后再次编译。" -ForegroundColor Yellow
+    Write-Host "[*] 请先运行 .\tools\updater\update-sing-box-core.ps1 下载最新核心库后再次编译。" -ForegroundColor Yellow
     exit 1
 }
 

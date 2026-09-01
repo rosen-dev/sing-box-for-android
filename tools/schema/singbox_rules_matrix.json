@@ -1,0 +1,135 @@
+{
+    "$schema":  "https://sing-box.sagernet.org/schema/rules-matrix-v1.json",
+    "version":  "1.0.0",
+    "updated_at":  "2026-09-01T22:09:14Z",
+    "description":  "Sing-box Migration \u0026 Deprecated 官方规范感知矩阵 (由官方文档与网关架构提炼)",
+    "source_documents":  [
+                             {
+                                 "name":  "Sing-box Migration Guide",
+                                 "url":  "https://sing-box.sagernet.org/migration/"
+                             },
+                             {
+                                 "name":  "Sing-box Deprecated Feature List",
+                                 "url":  "https://sing-box.sagernet.org/deprecated/"
+                             }
+                         ],
+    "rules":  [
+                  {
+                      "id":  "dns_cache_store_dns",
+                      "type":  "DEPRECATION",
+                      "name":  "DNS 缓存字段演进 (store_dns 替代 store_rdrc)",
+                      "since_version":  "1.14.0",
+                      "removed_in_version":  "1.15.0",
+                      "target_file":  "ConfigGenerator.kt",
+                      "check_type":  "custom",
+                      "pass_condition":  "has_store_dns_and_no_put_store_rdrc",
+                      "doc_url":  "https://sing-box.sagernet.org/deprecated/#store_rdrc-cache-file-option",
+                      "error_message":  "检测到仍在主动注入已废弃的 store_rdrc 字段。请按照 1.14+ 迁移文档改用 store_dns。",
+                      "suggestion":  "在 ConfigGenerator.kt 中使用 cacheFile.put(\"store_dns\", true) 并移除 store_rdrc。"
+                  },
+                  {
+                      "id":  "dns_cache_independent_cache",
+                      "type":  "DEPRECATION",
+                      "name":  "DNS 独立缓存已废弃 (移除 independent_cache)",
+                      "since_version":  "1.14.0",
+                      "removed_in_version":  "1.15.0",
+                      "target_file":  "ConfigGenerator.kt",
+                      "check_type":  "negative_match",
+                      "pattern":  "\"independent_cache\"",
+                      "doc_url":  "https://sing-box.sagernet.org/deprecated/#independent_cache-dns-option",
+                      "error_message":  "检测到已废弃的 independent_cache 字段。请参考 1.14 迁移指南移除。",
+                      "suggestion":  "从 DNS 配置中彻底移除 independent_cache 属性。"
+                  },
+                  {
+                      "id":  "dns_direct_detour_illegal",
+                      "type":  "MIGRATION_BREAKING",
+                      "name":  "dns-direct 纯净直连规范 (严禁声明 detour: direct)",
+                      "since_version":  "1.14.0",
+                      "removed_in_version":  "1.14.0",
+                      "target_file":  "ConfigGenerator.kt",
+                      "check_type":  "custom",
+                      "pass_condition":  "dns_direct_no_detour_direct",
+                      "doc_url":  "https://sing-box.sagernet.org/migration/#1140",
+                      "error_message":  "dns-direct 包含了 detour: direct，会导致核心报 fatal: detour to an empty direct outbound makes no sense",
+                      "suggestion":  "移除 dns-direct 出站中的 detour 字段，仅保留 dns-remote 的 detour: PROXY。"
+                  },
+                  {
+                      "id":  "doh_bootstrap_resolver",
+                      "type":  "MIGRATION_BREAKING",
+                      "name":  "dns-remote 防污染 DoH 域名解析器与代理绑定",
+                      "since_version":  "1.12.0",
+                      "removed_in_version":  "1.14.0",
+                      "target_file":  "ConfigGenerator.kt",
+                      "check_type":  "custom",
+                      "pass_condition":  "dns_remote_has_resolver_and_detour",
+                      "doc_url":  "https://sing-box.sagernet.org/migration/#migrate-to-new-dns-server-formats",
+                      "error_message":  "dns-remote 缺少 domain_resolver 或未指定 detour: PROXY，会导致海外 DoH 解析死锁超时",
+                      "suggestion":  "为 dns-remote 补充 put(\"domain_resolver\", \"dns-direct\") 和 put(\"detour\", GatewayConstants.TAG_PROXY)。"
+                  },
+                  {
+                      "id":  "dns_server_ip_passthrough",
+                      "type":  "GATEWAY_SPEC",
+                      "name":  "DNS 服务器 IP 直通底层路由放行 (1.1.1.1 -\u003e PROXY, 223.5.5.5 -\u003e direct)",
+                      "since_version":  "1.12.0",
+                      "removed_in_version":  "1.12.0",
+                      "target_file":  "ConfigGenerator.kt",
+                      "check_type":  "custom",
+                      "pass_condition":  "dns_server_ips_routed",
+                      "doc_url":  "https://sing-box.sagernet.org/configuration/route/rule/",
+                      "error_message":  "底层路由未显式放行 DNS 服务器 IP，在 final: block 漏斗下会导致 DNS 请求全部被拦截",
+                      "suggestion":  "在 route.rules 中显式将 1.1.1.1/32 等直通至 PROXY，223.5.5.5/32 等直通至 direct。"
+                  },
+                  {
+                      "id":  "lan_private_ip_direct",
+                      "type":  "GATEWAY_SPEC",
+                      "name":  "局域网与私有 IP 原生直连 (ip_is_private -\u003e direct)",
+                      "since_version":  "1.12.0",
+                      "removed_in_version":  "1.12.0",
+                      "target_file":  "ConfigGenerator.kt",
+                      "check_type":  "positive_match",
+                      "pattern":  "\"ip_is_private\",\\s*true",
+                      "doc_url":  "https://sing-box.sagernet.org/configuration/route/rule/#ip_is_private",
+                      "error_message":  "缺少 ip_is_private 直连规则，会导致局域网设备与私有地址通信中断",
+                      "suggestion":  "在 route.rules 中添加 put(\"ip_is_private\", true) 并指定 outbound 为 direct。"
+                  },
+                  {
+                      "id":  "mixed_inbound_port_injection",
+                      "type":  "GATEWAY_SPEC",
+                      "name":  "旁路由 8899 mixed 端口入站注入",
+                      "since_version":  "1.12.0",
+                      "removed_in_version":  "1.12.0",
+                      "target_file":  "ConfigGenerator.kt",
+                      "check_type":  "custom",
+                      "pass_condition":  "mixed_port_8899_configured",
+                      "doc_url":  "https://sing-box.sagernet.org/configuration/inbound/mixed/",
+                      "error_message":  "未检测到 8899 旁路由端口配置",
+                      "suggestion":  "在 buildInbounds 中注入 type: mixed, tag: mixed-in, listen: 0.0.0.0, listen_port: 8899。"
+                  },
+                  {
+                      "id":  "ruleset_format_source_json",
+                      "type":  "MIGRATION_BREAKING",
+                      "name":  "规则集引用格式规范 (format: source 必须指向 .json)",
+                      "since_version":  "1.13.0",
+                      "removed_in_version":  "1.14.0",
+                      "target_file":  "ConfigGenerator.kt",
+                      "check_type":  "custom",
+                      "pass_condition":  "ruleset_points_to_json",
+                      "doc_url":  "https://sing-box.sagernet.org/migration/#1130",
+                      "error_message":  "规则集指针未指向 .json 文件，会导致核心 parse rule-set 报 JSON 解析错误",
+                      "suggestion":  "通过 RuleSetManager 将 YAML 转换为 version: 2 JSON 文件后再挂载进 rule_set。"
+                  },
+                  {
+                      "id":  "legacy_strategy_dns_action",
+                      "type":  "DEPRECATION",
+                      "name":  "DNS 规则遗留 strategy 动作废弃",
+                      "since_version":  "1.14.0",
+                      "removed_in_version":  "1.15.0",
+                      "target_file":  "ConfigGenerator.kt",
+                      "check_type":  "negative_match",
+                      "pattern":  "\"action\",\\s*\"strategy\"",
+                      "doc_url":  "https://sing-box.sagernet.org/deprecated/#legacy-strategy-dns-rule-action-option",
+                      "error_message":  "检测到 DNS 规则中使用了已废弃的 action: strategy。请改用 response matching 机制。",
+                      "suggestion":  "参考 1.14 迁移指南，改用新型 DNS response matching。"
+                  }
+              ]
+}
