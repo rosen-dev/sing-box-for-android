@@ -12,8 +12,8 @@
 | **`build-and-install-release.ps1`** | **【根目录 · 正式发布】** | 编译开启 R8 混淆优化与 Keystore 正式签名的 arm64 Release APK，并支持自动安装到手机 | `.\tools\build-and-install-release.ps1` |
 | **`validator\validate-gateway-config.ps1`** | **【编译前体检】** | 一键深度诊断 4 大规则集语法、加载官方 Migration/Deprecated 矩阵，并调起官方原厂 `sing-box.exe check` 进行权威裁决 | `.\tools\validator\validate-gateway-config.ps1` |
 | **`validator\sync-rules-matrix.ps1`** | **【编译前体检】** | 从官方在线文档同步最新 Migration & Deprecated 规范至 `tools\schema\singbox_rules_matrix.json` (未变动秒级跳过) | `.\tools\validator\sync-rules-matrix.ps1` |
-| **`validator\download-sing-box-cli.ps1`** | **【编译前体检】** | 一键从官方 Releases 同步配套的 Windows 原厂命令行工具（`sing-box.exe` + `libcronet.dll` 到 `tools\bin\`） | `.\tools\validator\download-sing-box-cli.ps1` |
-| **`whitelist-updater\auto-whitelist-sniffer.ps1`** | **【白名单自愈】** | 实时嗅探指定 App（交互式输入包名）的网络活动，自动捕获被拦截的域名/IP 并更新至 `RuleSet_Whitelist.yaml` | `.\tools\whitelist-updater\auto-whitelist-sniffer.ps1` |
+| **`whitelist-updater\android-auto-whitelist-sniffer.ps1`** | **【白名单自愈 · Android】** | 实时嗅探指定 Android App（交互式输入包名）的网络活动，自动捕获被拦截的域名/IP 并更新至 `RuleSet_Whitelist.yaml` | `.\tools\whitelist-updater\android-auto-whitelist-sniffer.ps1` |
+| **`whitelist-updater\windows-chrome-auto-whitelist-sniffer.ps1`** | **【白名单自愈 · Chrome】** | 自动启动 Windows Chrome 访问指定网站，实时嗅探全量子资源网络请求，捕获被拦截项并自动加入白名单 | `.\tools\whitelist-updater\windows-chrome-auto-whitelist-sniffer.ps1` |
 | **`e2e-routing-test\test-e2e-gateway-routing.ps1`** | **【真机实测】** | 交互式索要订阅链接，自动打通真机端口映射，执行 5 层分流路由全项实测，带故障自动诊断与根因报告 | `.\tools\e2e-routing-test\test-e2e-gateway-routing.ps1` |
 | **`update-to-latest-sing-box\update-sing-box-core.ps1`** | **【跟进官方更新】** | 官方 Go 核心发新版时，一键从 GitHub Releases 下载最新 `libbox.aar`（未变秒级跳过，并自动联动规范体检） | `.\tools\update-to-latest-sing-box\update-sing-box-core.ps1` |
 | **`update-to-latest-sing-box\rebase-to-latest-clients-tag.ps1`** | **【跟进官方更新】** | 官方 Android 客户端发新版时，自动将本仓库变基至官方最新主线（自带版本备份与安全回滚） | `.\tools\update-to-latest-sing-box\rebase-to-latest-clients-tag.ps1` |
