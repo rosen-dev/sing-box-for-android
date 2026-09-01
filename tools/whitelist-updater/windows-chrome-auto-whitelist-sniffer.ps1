@@ -168,10 +168,37 @@ function Resolve-IpPtrDomain([string]$ip) {
 }
 
 # ----------------------------------------------------------------------
-# 5. 直接拉起浏览器打开目标网页
+# 5. 查找 Chrome/Edge 浏览器并自动拉起 (附带 --auto-open-devtools-for-tabs 开启 F12 网络面板)
 # ----------------------------------------------------------------------
-Write-Host "`n[*] 正在启动浏览器访问 $Url ..." -ForegroundColor Yellow
-Start-Process $Url
+$chromePaths = @(
+    "C:\Program Files\Google\Chrome\Application\chrome.exe",
+    "C:\Program Files (x86)\Google\Chrome\Application\chrome.exe",
+    ([System.Environment]::ExpandEnvironmentVariables("%LOCALAPPDATA%\Google\Chrome\Application\chrome.exe")),
+    "C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe",
+    "C:\Program Files\Microsoft\Edge\Application\msedge.exe"
+)
+
+$browserExe = $null
+foreach ($p in $chromePaths) {
+    if (Test-Path $p) {
+        $browserExe = $p
+        break
+    }
+}
+
+Write-Host "`n[*] 正在启动浏览器访问 $Url 并自动开启【F12 开发者工具箱】..." -ForegroundColor Yellow
+
+$browserArgs = @(
+    "--auto-open-devtools-for-tabs", # 自动拉起 F12 DevTools 开发者工具箱
+    $Url
+)
+
+if ($browserExe) {
+    Write-Host (" [+] 成功调起浏览器: " + (Split-Path $browserExe -Leaf) + " (已自动注入 F12 调试面板)") -ForegroundColor Gray
+    Start-Process -FilePath $browserExe -ArgumentList $browserArgs
+} else {
+    Start-Process $Url
+}
 
 # ----------------------------------------------------------------------
 # 6. 实时嗅探网络请求 (用户自由操作，随时按 Enter 结束)
