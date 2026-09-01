@@ -1,7 +1,10 @@
 ﻿# ======================================================================
 # 脚本名称: auto-whitelist-sniffer.ps1
-# 脚本作用: 实时嗅探指定 App 的网络活动，自动捕获被 Sing-box 拦截的域名/IP 并更新至白名单
+# 脚本作用: 实时嗅探指定 App 的网络活动，智能捕获被 Sing-box 拦截的【域名 + 纯 IP】并自愈更新至白名单
 # 存放位置: tools/whitelist-updater/
+# 核心特性: 
+#   1. 支持指定应用包名或关键字过滤 (不写死任何 App)
+#   2. 纯 IP 拦截智能处理：私有 IP 过滤、PTR 域名反查、CIDR 重叠感知、网段聚合推荐
 # ======================================================================
 
 param(
@@ -17,7 +20,7 @@ $WhitelistYaml = Join-Path $ProjectRoot "app\src\main\assets\gateway_rules\RuleS
 $ValidatorScript = Join-Path $ProjectRoot "tools\validator\validate-gateway-config.ps1"
 
 Write-Host "================================================================" -ForegroundColor Cyan
-Write-Host "     Sing-box 应用网络活动实时嗅探与白名单自愈工具               " -ForegroundColor Cyan
+Write-Host "   Sing-box 应用网络活动实时嗅探与【域名+IP】白名单自愈工具      " -ForegroundColor Cyan
 Write-Host "================================================================" -ForegroundColor Cyan
 
 # ----------------------------------------------------------------------
@@ -30,7 +33,6 @@ if (-not $PackageName) {
         Write-Host "[!] 未检测到连接的 Android 手机，请确保已开启 USB 调试并连接手机。" -ForegroundColor Red
     } else {
         Write-Host " [+] 检测到 ADB 手机已在线。" -ForegroundColor Green
-        # 尝试列出部分第三方包名作为参考
         $pkgList = (adb shell pm list packages -3 2>$null) -replace '^package:', '' | Select-Object -First 15
         if ($pkgList) {
             Write-Host " [+] 手机上安装的部分第三方应用参考:" -ForegroundColor Gray
@@ -65,31 +67,81 @@ try {
 }
 
 # ----------------------------------------------------------------------
-# 3. 读取本地白名单已有规则（防止重复添加）
+# 3. IP 处理辅助函数：私网判断、CIDR 包含测试、PTR 域名反查
 # ----------------------------------------------------------------------
-function Get-ExistingRules {
-    $existing = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::OrdinalIgnoreCase)
-    if (Test-Path $WhitelistYaml) {
-        $lines = Get-Content $WhitelistYaml -Encoding UTF8
-        foreach ($line in $lines) {
-            $t = $line.Trim()
-            if ($t.StartsWith("- ")) {
-                $ruleContent = $t.Substring(2).Trim()
-                if ($ruleContent.Contains("#")) {
-                    $ruleContent = $ruleContent.Substring(0, $ruleContent.IndexOf("#")).Trim()
-                }
-                $existing.Add($ruleContent) | Out-Null
+function Is-PrivateIp([string]$ip) {
+    if (-not $ip) { return $true }
+    if ($ip -match '^(10\.|192\.168\.|127\.|169\.254\.|172\.(1[6-9]|2[0-9]|3[01])\.|0\.|::1|fe80:)') {
+        return $true
+    }
+    return $false
+}
+
+function Test-IpInCidr([string]$ipStr, [string]$cidrStr) {
+    try {
+        $parts = $cidrStr.Split('/')
+        $netBytes = [System.Net.IPAddress]::Parse($parts[0]).GetAddressBytes()
+        $maskLen = [int]$parts[1]
+        $ipBytes = [System.Net.IPAddress]::Parse($ipStr).GetAddressBytes()
+        if ($netBytes.Length -ne $ipBytes.Length) { return $false }
+        
+        for ($i = 0; $i -lt $netBytes.Length; $i++) {
+            if ($maskLen -ge 8) {
+                $curMask = 255
+                $maskLen -= 8
+            } elseif ($maskLen -gt 0) {
+                $curMask = (256 - [Math]::Pow(2, 8 - $maskLen))
+                $maskLen = 0
+            } else {
+                $curMask = 0
+            }
+            if (($netBytes[$i] -band $curMask) -ne ($ipBytes[$i] -band $curMask)) {
+                return $false
+            }
+        }
+        return $true
+    } catch {
+        return $false
+    }
+}
+
+function Resolve-IpPtrDomain([string]$ip) {
+    try {
+        $entry = [System.Net.Dns]::GetHostEntry($ip)
+        if ($entry -and $entry.HostName -and $entry.HostName -ne $ip) {
+            return $entry.HostName
+        }
+    } catch {}
+    return $null
+}
+
+# ----------------------------------------------------------------------
+# 4. 读取本地白名单已有规则与已有 IP 网段
+# ----------------------------------------------------------------------
+$knownRules = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::OrdinalIgnoreCase)
+$knownCidrs = [System.Collections.Generic.List[string]]::new()
+
+if (Test-Path $WhitelistYaml) {
+    $lines = Get-Content $WhitelistYaml -Encoding UTF8
+    foreach ($line in $lines) {
+        $t = $line.Trim()
+        if ($t.StartsWith("- ")) {
+            $ruleContent = $t.Substring(2).Trim()
+            if ($ruleContent.Contains("#")) {
+                $ruleContent = $ruleContent.Substring(0, $ruleContent.IndexOf("#")).Trim()
+            }
+            $knownRules.Add($ruleContent) | Out-Null
+            if ($ruleContent.StartsWith("IP-CIDR,")) {
+                $knownCidrs.Add($ruleContent.Substring(8).Trim())
             }
         }
     }
-    return $existing
 }
 
-$knownRules = Get-ExistingRules
-Write-Host (" [+] 本地 RuleSet_Whitelist.yaml 已有规则: " + $knownRules.Count + " 条") -ForegroundColor Gray
+Write-Host (" [+] 本地已有规则: " + $knownRules.Count + " 条 (包含 " + $knownCidrs.Count + " 条 IP-CIDR 网段)") -ForegroundColor Gray
 
 # ----------------------------------------------------------------------
-# 4. 智能提取域名后缀辅助函数
+# 5. 智能提取域名后缀与智能生成 IP 规则
 # ----------------------------------------------------------------------
 function Extract-DomainRule([string]$host) {
     if (-not $host -or $host -match '^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$') {
@@ -97,9 +149,7 @@ function Extract-DomainRule([string]$host) {
     }
     $parts = $host.Split('.')
     if ($parts.Length -ge 2) {
-        # 提取根域名 / 主域名
         $suffix = $parts[-2] + "." + $parts[-1]
-        # 处理常见二级后缀 (如 .com.cn, .co.uk 等)
         if ($parts.Length -ge 3 -and $parts[-2] -in @("com", "net", "org", "gov", "edu", "co")) {
             $suffix = $parts[-3] + "." + $parts[-2] + "." + $parts[-1]
         }
@@ -109,11 +159,11 @@ function Extract-DomainRule([string]$host) {
 }
 
 # ----------------------------------------------------------------------
-# 5. 循环嗅探与实时捕获
+# 6. 循环嗅探与实时捕获
 # ----------------------------------------------------------------------
 Write-Host "`n================================================================" -ForegroundColor Cyan
 Write-Host "  开始实时嗅探... 请在手机上操作 $filterMsg" -ForegroundColor Yellow
-Write-Host "  (按 Ctrl + C 可随时退出并生成本次拦截报告)" -ForegroundColor Gray
+Write-Host "  (支持域名拦截与纯 IP 拦截自动识别，按 Ctrl + C 可退出并生成报告)" -ForegroundColor Gray
 Write-Host "================================================================`n" -ForegroundColor Cyan
 
 $discoveredNewRules = [System.Collections.Generic.List[string]]::new()
@@ -151,23 +201,77 @@ try {
                 $isBlocked = ($outbound -eq "block") -or ($outbound -eq "reject") -or ($rule -match "final" -and $outbound -ne "PROXY" -and $outbound -ne "direct")
 
                 if ($matchApp -and $isBlocked) {
-                    $targetStr = if ($hostName) { $hostName } else { $destIp }
-                    $suggestedRule = if ($hostName) { Extract-DomainRule $hostName } else { "IP-CIDR,$destIp/32" }
-
                     $timeStr = Get-Date -Format "HH:mm:ss"
-                    Write-Host "[$timeStr ⚡ 捕获拦截]" -ForegroundColor Red -NoNewline
-                    Write-Host " 目标: " -ForegroundColor Gray -NoNewline
-                    Write-Host $targetStr -ForegroundColor Yellow -NoNewline
-                    Write-Host " (出站: $outbound, 规则: $rule)" -ForegroundColor DarkGray
+                    $suggestedRule = $null
+                    $reason = ""
 
+                    # 情况 A：有域名被拦截
+                    if ($hostName -and $hostName -notmatch '^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$') {
+                        Write-Host "[$timeStr ⚡ 域名拦截]" -ForegroundColor Red -NoNewline
+                        Write-Host " 域名: " -ForegroundColor Gray -NoNewline
+                        Write-Host $hostName -ForegroundColor Yellow -NoNewline
+                        Write-Host " (出站: $outbound, 规则: $rule)" -ForegroundColor DarkGray
+                        
+                        $suggestedRule = Extract-DomainRule $hostName
+                        $reason = "域名白名单规则"
+                    }
+                    # 情况 B：纯 IP 被拦截 (未命中域名或 raw TCP/IP 连接)
+                    elseif ($destIp) {
+                        if (Is-PrivateIp $destIp) {
+                            # 私网 IP 由 ip_is_private 规则负责直连，不加入白名单
+                            continue
+                        }
+
+                        # 检查当前 IP 是否已被已有 CIDR 规则覆盖
+                        $alreadyCovered = $false
+                        foreach ($cidr in $knownCidrs) {
+                            if (Test-IpInCidr $destIp $cidr) {
+                                $alreadyCovered = $true
+                                break
+                            }
+                        }
+
+                        if ($alreadyCovered) {
+                            # 已被网段覆盖，无需重复添加
+                            continue
+                        }
+
+                        Write-Host "[$timeStr ⚡ 纯 IP 拦截]" -ForegroundColor Red -NoNewline
+                        Write-Host " 目标 IP: " -ForegroundColor Gray -NoNewline
+                        Write-Host $destIp -ForegroundColor Yellow -NoNewline
+                        Write-Host " (出站: $outbound, 规则: $rule)" -ForegroundColor DarkGray
+
+                        # 1. 尝试通过 PTR 反查域名
+                        $ptrDomain = Resolve-IpPtrDomain $destIp
+                        if ($ptrDomain) {
+                            $ptrRule = Extract-DomainRule $ptrDomain
+                            if ($ptrRule) {
+                                Write-Host "    ├─ [🔍 PTR 反查域名成功] $destIp -> $ptrDomain" -ForegroundColor Cyan
+                                $suggestedRule = $ptrRule
+                                $reason = "通过 PTR 反查为主域名规则"
+                            }
+                        }
+
+                        # 2. 若反查无域名，生成 IP-CIDR 规则
+                        if (-not $suggestedRule) {
+                            $suggestedRule = "IP-CIDR,$destIp/32"
+                            $reason = "纯 IP 兜底规则"
+                        }
+                    }
+
+                    # 判断是否为全新规则
                     if ($suggestedRule -and (-not $knownRules.Contains($suggestedRule)) -and (-not $discoveredNewRules.Contains($suggestedRule))) {
                         $discoveredNewRules.Add($suggestedRule)
-                        Write-Host "    └─ [💡 推荐白名单规则] " -ForegroundColor Cyan -NoNewline
-                        Write-Host $suggestedRule -ForegroundColor Green
+                        Write-Host "    └─ [💡 推荐自愈规则] " -ForegroundColor Cyan -NoNewline
+                        Write-Host $suggestedRule -ForegroundColor Green -NoNewline
+                        Write-Host (" (" + $reason + ")") -ForegroundColor Gray
 
                         if ($AutoApply) {
                             Add-Content -Path $WhitelistYaml -Value ("  - " + $suggestedRule) -Encoding UTF8
                             $knownRules.Add($suggestedRule) | Out-Null
+                            if ($suggestedRule.StartsWith("IP-CIDR,")) {
+                                $knownCidrs.Add($suggestedRule.Substring(8).Trim())
+                            }
                             Write-Host "    └─ [✔ 已自动写入] app/src/main/assets/gateway_rules/RuleSet_Whitelist.yaml" -ForegroundColor Green
                         }
                     }
