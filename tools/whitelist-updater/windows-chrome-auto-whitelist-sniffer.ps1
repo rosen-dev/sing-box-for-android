@@ -1,19 +1,18 @@
 ﻿# ======================================================================
 # 脚本名称: windows-chrome-auto-whitelist-sniffer.ps1
-# 脚本作用: 【Windows Chrome 端】自动打开指定网站，实时嗅探全量网络请求，捕获被拦截的域名/IP 并更新至白名单
+# 脚本作用: 【Windows 浏览器端】打开指定网站，实时嗅探所有网络请求，捕获被拦截的域名/IP 并更新至白名单
 # 存放位置: tools/whitelist-updater/
 # 核心特性:
-#   1. 支持命令行传参或交互式等待用户输入目标网站 URL
-#   2. 自动配置 Windows Chrome 代理走 8899 mixed 端口，并自动打通 9090 Clash REST API
-#   3. 实时捕获页面加载过程中的所有被拦截子资源 (CDN/API/字体/鉴权等)
-#   4. 智能提取 DOMAIN-SUFFIX 与 IP-CIDR，自动防重，一键更新白名单并体检
+#   1. 自动等待用户输入要访问的目标网址 (支持任何域名/URL)
+#   2. 直接拉起浏览器打开网页 (依托 PC Clash Verge TUN 全局走手机网关 192.168.31.100:8899)
+#   3. 自动探测 9090 控制接口 (支持本地 127.0.0.1:9090 或局域网 192.168.31.100:9090)
+#   4. 用户可自由在网页中操作任意时长，按【Enter 回车键】或【Ctrl + C】结束并一键自愈白名单
 # ======================================================================
 
 param(
     [string]$Url = "",
     [switch]$AutoApply,
-    [int]$ListenSeconds = 20,
-    [int]$ProxyPort = 8899
+    [string]$GatewayIp = "192.168.31.100"
 )
 
 $ProjectRoot = Resolve-Path "$PSScriptRoot\..\.."
@@ -23,7 +22,7 @@ $WhitelistYaml = Join-Path $ProjectRoot "app\src\main\assets\gateway_rules\RuleS
 $ValidatorScript = Join-Path $ProjectRoot "tools\validator\validate-gateway-config.ps1"
 
 Write-Host "================================================================" -ForegroundColor Cyan
-Write-Host "   Sing-box Windows Chrome 网站访问嗅探与白名单自愈工具         " -ForegroundColor Cyan
+Write-Host "   Sing-box Windows 网页访问嗅探与白名单自愈工具               " -ForegroundColor Cyan
 Write-Host "================================================================" -ForegroundColor Cyan
 
 # ----------------------------------------------------------------------
@@ -31,7 +30,7 @@ Write-Host "================================================================" -F
 # ----------------------------------------------------------------------
 if (-not $Url) {
     Write-Host "`n----------------------------------------------------------------" -ForegroundColor Cyan
-    $inputUrl = Read-Host "请输入你要嗅探访问的目标网站 URL (例如: https://onenote.com 或 gemini.google.com)"
+    $inputUrl = Read-Host "请输入你要嗅探访问的目标网站 URL (例如: onenote.com 或 https://gemini.google.com)"
     $Url = $inputUrl.Trim()
 }
 
@@ -48,44 +47,41 @@ if (-not ($Url.StartsWith("http://") -or $Url.StartsWith("https://"))) {
 Write-Host "`n[✔] 目标网站设定 -> $Url" -ForegroundColor Green
 
 # ----------------------------------------------------------------------
-# 2. 探测 Sing-box 9090 Clash REST API 通信
+# 2. 探测 Sing-box 9090 控制接口 (优先 ADB 映射，其次局域网直连)
 # ----------------------------------------------------------------------
-Write-Host "`n[*] 正在检测 Sing-box 9090 控制端口通信..." -ForegroundColor Yellow
+Write-Host "`n[*] 正在探测 Sing-box 9090 控制端口通信..." -ForegroundColor Yellow
+
 $adb = "$env:LOCALAPPDATA\Android\Sdk\platform-tools\adb.exe"
 if (-not (Test-Path $adb)) { $adb = "adb" }
 & $adb forward tcp:9090 tcp:9090 2>$null
 
 $apiBase = "http://127.0.0.1:9090"
 $apiReady = $false
+
+# 尝试 127.0.0.1:9090
 try {
     $wc = New-Object System.Net.WebClient
-    $wc.Timeout = 2000
+    $wc.Timeout = 1500
     $vJson = $wc.DownloadString("$apiBase/version")
     $apiReady = $true
-    Write-Host " [✔] Sing-box 9090 Clash REST API 通信正常！" -ForegroundColor Green
+    Write-Host " [✔] 成功连接 Sing-box 9090 控制端口 ($apiBase)" -ForegroundColor Green
 } catch {
-    # 尝试局域网直连手机 IP
+    # 尝试局域网直连 192.168.31.100:9090
     try {
-        $apiBase = "http://192.168.31.100:9090"
+        $apiBase = "http://${GatewayIp}:9090"
         $wc = New-Object System.Net.WebClient
-        $wc.Timeout = 2000
+        $wc.Timeout = 1500
         $vJson = $wc.DownloadString("$apiBase/version")
         $apiReady = $true
-        Write-Host " [✔] 通过局域网 192.168.31.100:9090 连接 Sing-box 正常！" -ForegroundColor Green
+        Write-Host " [✔] 成功通过局域网连接 Sing-box 9090 控制端口 ($apiBase)" -ForegroundColor Green
     } catch {
-        Write-Host " [!] 提示: 无法连接到 9090 控制端口。请确保手机 Sing-box 已启动。" -ForegroundColor Yellow
+        Write-Host " [!] 无法连接到 9090 控制端口。请确保手机 Sing-box 已启动连接。" -ForegroundColor Yellow
         $apiBase = "http://127.0.0.1:9090"
     }
 }
 
 # ----------------------------------------------------------------------
-# 3. 直接拉起默认浏览器访问目标网站 (PC 已全局走手机网关)
-# ----------------------------------------------------------------------
-Write-Host "`n[*] 正在启动浏览器打开 $Url ..." -ForegroundColor Yellow
-Start-Process $Url
-
-# ----------------------------------------------------------------------
-# 4. 读取本地已有白名单规则
+# 3. 读取本地已有白名单规则
 # ----------------------------------------------------------------------
 $knownRules = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::OrdinalIgnoreCase)
 $knownCidrs = [System.Collections.Generic.List[string]]::new()
@@ -106,10 +102,10 @@ if (Test-Path $WhitelistYaml) {
         }
     }
 }
-Write-Host (" [+] 本地已有规则: " + $knownRules.Count + " 条") -ForegroundColor Gray
+Write-Host (" [+] 本地已有白名单规则: " + $knownRules.Count + " 条") -ForegroundColor Gray
 
 # ----------------------------------------------------------------------
-# 5. 辅助函数：域名提炼、IP 判断与反查
+# 4. 辅助函数：域名提炼、IP 判断与反查
 # ----------------------------------------------------------------------
 function Extract-DomainRule([string]$host) {
     if (-not $host -or $host -match '^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$') {
@@ -172,19 +168,34 @@ function Resolve-IpPtrDomain([string]$ip) {
 }
 
 # ----------------------------------------------------------------------
-# 6. 实时捕获与记录所有网络访问
+# 5. 直接拉起浏览器打开目标网页
+# ----------------------------------------------------------------------
+Write-Host "`n[*] 正在启动浏览器访问 $Url ..." -ForegroundColor Yellow
+Start-Process $Url
+
+# ----------------------------------------------------------------------
+# 6. 实时嗅探网络请求 (用户自由操作，随时按 Enter 结束)
 # ----------------------------------------------------------------------
 Write-Host "`n================================================================" -ForegroundColor Cyan
-Write-Host "  正在实时记录该网站触发的所有网络请求... (持续 $ListenSeconds 秒)" -ForegroundColor Yellow
-Write-Host "  (在此期间请在浏览器中操作该网站，按 Ctrl + C 可提前结束)" -ForegroundColor Gray
+Write-Host "  [⚡ 雷达监听中] 正在实时捕获该网站触发的所有网络请求..." -ForegroundColor Yellow
+Write-Host "  [💡 操作指引] 请在浏览器中自由操作网页（登录/浏览/点击/测试功能）" -ForegroundColor Gray
+Write-Host "  [👉 结束方式] 操作完毕后，随时按【Enter 回车键】或【Ctrl + C】结束嗅探！" -ForegroundColor Cyan
 Write-Host "================================================================`n" -ForegroundColor Cyan
 
 $discoveredNewRules = [System.Collections.Generic.List[string]]::new()
 $seenConnIds = [System.Collections.Generic.HashSet[string]]::new()
-$startTime = Get-Date
 
 try {
-    while (((Get-Date) - $startTime).TotalSeconds -lt $ListenSeconds) {
+    while ($true) {
+        # 检查用户是否按下了 Enter / 退出键
+        if ([System.Console]::KeyAvailable) {
+            $key = [System.Console]::ReadKey($true)
+            if ($key.Key -eq 'Enter' -or $key.Key -eq 'Escape' -or $key.KeyChar -in @('q', 'Q')) {
+                Write-Host "`n[*] 收到用户结束指令，正在生成本次嗅探汇总报告..." -ForegroundColor Yellow
+                break
+            }
+        }
+
         try {
             $wc = New-Object System.Net.WebClient
             $wc.Encoding = [System.Text.Encoding]::UTF8
@@ -213,14 +224,17 @@ try {
                     $reason = ""
                     $ptrComment = ""
 
+                    # 情况 A：域名被拦截
                     if ($hostName -and $hostName -notmatch '^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$') {
                         Write-Host "[$timeStr ⚡ 域名拦截]" -ForegroundColor Red -NoNewline
                         Write-Host " $hostName" -ForegroundColor Yellow -NoNewline
                         Write-Host " (出站: $outbound, 规则: $rule)" -ForegroundColor DarkGray
                         
                         $suggestedRule = Extract-DomainRule $hostName
-                        $reason = "网站关联域名规则"
-                    } elseif ($destIp) {
+                        $reason = "网页关联域名规则"
+                    }
+                    # 情况 B：纯 IP 被拦截
+                    elseif ($destIp) {
                         if (Is-PrivateIp $destIp) { continue }
                         $alreadyCovered = $false
                         foreach ($cidr in $knownCidrs) {
@@ -238,10 +252,11 @@ try {
                         $reason = if ($ptrDomain) { "原始 IP 直通 (PTR: $ptrDomain)" } else { "纯 IP 直通" }
                     }
 
+                    # 判断是否为全新规则
                     if ($suggestedRule -and (-not $knownRules.Contains($suggestedRule)) -and (-not $discoveredNewRules.Contains($suggestedRule))) {
                         $discoveredNewRules.Add($suggestedRule)
                         $ruleWithComment = if ($ptrComment) { $suggestedRule + $ptrComment } else { $suggestedRule }
-                        Write-Host "    └─ [💡 推荐白名单规则] " -ForegroundColor Cyan -NoNewline
+                        Write-Host "    └─ [💡 推荐自愈规则] " -ForegroundColor Cyan -NoNewline
                         Write-Host $ruleWithComment -ForegroundColor Green -NoNewline
                         Write-Host (" (" + $reason + ")") -ForegroundColor Gray
 
@@ -255,19 +270,19 @@ try {
                         }
                     }
                 } else {
-                    # 正常通过的连接（输出简要绿色记录）
-                    Write-Host "[$timeStr ✔ 正常通行]" -ForegroundColor Gray -NoNewline
-                    Write-Host " $targetStr" -ForegroundColor DarkGreen -NoNewline
+                    # 正常通过的连接（输出浅色日志）
+                    Write-Host "[$timeStr ✔ 正常放行]" -ForegroundColor DarkGray -NoNewline
+                    Write-Host " $targetStr" -ForegroundColor DarkCyan -NoNewline
                     Write-Host " -> $outbound" -ForegroundColor DarkGray
                 }
             }
         } catch {}
 
-        Start-Sleep -Milliseconds 1500
+        Start-Sleep -Milliseconds 1200
     }
 } finally {
     Write-Host "`n================================================================" -ForegroundColor Cyan
-    Write-Host "                   网站访问嗅探会话报告                          " -ForegroundColor Cyan
+    Write-Host "                   网页访问嗅探汇总报告                          " -ForegroundColor Cyan
     Write-Host "================================================================" -ForegroundColor Cyan
 
     if ($discoveredNewRules.Count -eq 0) {
