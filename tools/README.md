@@ -12,7 +12,7 @@
 | **`build-and-install-debug.ps1`** | **【本地调试】** | 本地极速编译 arm64 Debug APK，并自动推送到连接的手机上安装并拉起应用 | `.\tools\build-and-install-debug.ps1` |
 | **`build-and-install-release.ps1`** | **【正式发布】** | 编译开启 R8 混淆优化与 Keystore 正式签名的 arm64 Release APK，并支持自动安装到手机 | `.\tools\build-and-install-release.ps1` |
 | **`validate-gateway-config.ps1`** | **【规范体检】** | 一键深度诊断 4 大规则集语法、Sing-box 1.14+ 现代 DNS/Route 规范兼容性，确保核心升级后配置 100% 合规 | `.\tools\validate-gateway-config.ps1` |
-| **`download-sing-box-cli.ps1`** | **【官方 CLI】** | 一键从官方 Releases 同步配套的 Windows 原厂命令行工具（`sing-box.exe` + `libcronet.dll` 到 `tools\bin\`） | `.\tools\download-sing-box-cli.ps1` |
+| **`updater\download-sing-box-cli.ps1`** | **【官方 CLI】** | 一键从官方 Releases 同步配套的 Windows 原厂命令行工具（`sing-box.exe` + `libcronet.dll` 到 `tools\bin\`） | `.\tools\updater\download-sing-box-cli.ps1` |
 | **`updater\sync-rules-matrix.ps1`** | **【规范同步】** | 从官方在线文档同步最新 Migration & Deprecated 规范至 `tools\schema\singbox_rules_matrix.json` | `.\tools\updater\sync-rules-matrix.ps1` |
 | **`updater\update-sing-box-core.ps1`** | **【核心同步】** | 官方 Go 核心发新版时，一键从 GitHub Releases 下载最新 `libbox.aar`（未变秒级跳过，并自动联动规范体检） | `.\tools\updater\update-sing-box-core.ps1` |
 | **`updater\rebase-to-latest-clients-tag.ps1`** | **【代码同步】** | 官方 Android 客户端发新版时，自动将本仓库变基至官方最新主线（自带版本备份与安全回滚） | `.\tools\updater\rebase-to-latest-clients-tag.ps1` |

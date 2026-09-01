@@ -9,10 +9,10 @@ param(
     [switch]$Force
 )
 
-$ProjectRoot = Resolve-Path "$PSScriptRoot\.."
+$ProjectRoot = Resolve-Path "$PSScriptRoot\..\.."
 Set-Location $ProjectRoot
 
-$BinDir = Join-Path $PSScriptRoot "bin"
+$BinDir = Join-Path $ProjectRoot "tools\bin"
 $CliExe = Join-Path $BinDir "sing-box.exe"
 $CronetDll = Join-Path $BinDir "libcronet.dll"
 
