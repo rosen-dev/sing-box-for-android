@@ -49,21 +49,36 @@ $filterMsg = if ($PackageName) { "目标应用包名/关键字: [$PackageName]" 
 Write-Host "`n[✔] 嗅探目标设定 -> $filterMsg" -ForegroundColor Green
 
 # ----------------------------------------------------------------------
-# 2. 打通 ADB 端口转发 (Clash REST API 9090 端口)
+# 2. 打通并探测 9090 控制端口 (支持 USB/ADB 映射与局域网 192.168.31.100)
 # ----------------------------------------------------------------------
-Write-Host "`n[*] 正在打通手机 Sing-box 9090 控制端口映射 (adb forward)..." -ForegroundColor Yellow
-& adb forward tcp:9090 tcp:9090 2>$null
+Write-Host "`n[*] 正在探测 Sing-box 9090 控制端口通信..." -ForegroundColor Yellow
 
-$testApi = "http://127.0.0.1:9090/version"
+$adb = "$env:LOCALAPPDATA\Android\Sdk\platform-tools\adb.exe"
+if (-not (Test-Path $adb)) { $adb = "adb" }
+& $adb forward tcp:9090 tcp:9090 2>$null
+
+$apiBase = "http://127.0.0.1:9090"
 $apiReady = $false
+
 try {
     $wc = New-Object System.Net.WebClient
-    $wc.Timeout = 2000
-    $vJson = $wc.DownloadString($testApi)
+    $wc.Timeout = 1500
+    $vJson = $wc.DownloadString("$apiBase/version")
     $apiReady = $true
-    Write-Host " [✔] 手机 Sing-box Clash REST API 通信正常！" -ForegroundColor Green
+    Write-Host " [✔] 成功连接手机 Sing-box 9090 控制端口 ($apiBase)" -ForegroundColor Green
 } catch {
-    Write-Host " [!] 无法连接到手机上的 9090 端口。请确认手机上 Sing-box 网关服务已启动开启！" -ForegroundColor Yellow
+    # 尝试局域网直连 192.168.31.100:9090
+    try {
+        $apiBase = "http://192.168.31.100:9090"
+        $wc = New-Object System.Net.WebClient
+        $wc.Timeout = 1500
+        $vJson = $wc.DownloadString("$apiBase/version")
+        $apiReady = $true
+        Write-Host " [✔] 成功通过局域网直连手机 Sing-box 9090 控制端口 ($apiBase)" -ForegroundColor Green
+    } catch {
+        Write-Host " [!] 提示: 无法连接到 9090 端口。请确认手机上 Sing-box 网关服务已启动开启！" -ForegroundColor Yellow
+        $apiBase = "http://127.0.0.1:9090"
+    }
 }
 
 # ----------------------------------------------------------------------
@@ -174,7 +189,7 @@ try {
         try {
             $wc = New-Object System.Net.WebClient
             $wc.Encoding = [System.Text.Encoding]::UTF8
-            $connRaw = $wc.DownloadString("http://127.0.0.1:9090/connections")
+            $connRaw = $wc.DownloadString("$apiBase/connections")
             $connData = $connRaw | ConvertFrom-Json
 
             $allConns = @()
