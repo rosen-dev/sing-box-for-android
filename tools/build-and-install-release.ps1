@@ -10,12 +10,12 @@ Write-Host "================================================================" -F
 # 1. 检查核心库是否存在
 if (-not (Test-Path $AarPath)) {
     Write-Host "[!] 未检测到 app/libs/libbox.aar 核心库！" -ForegroundColor Red
-    Write-Host "[*] 请先运行 .\tools\updater\update-sing-box-core.ps1 下载最新核心库后再次编译。" -ForegroundColor Yellow
+    Write-Host "[*] 请先运行 .\tools\update-to-latest-sing-box\update-sing-box-core.ps1 下载最新核心库后再次编译。" -ForegroundColor Yellow
     exit 1
 }
 
 # 2. 编译前配置规范与规则集深度诊断体检
-& "$PSScriptRoot\validate-gateway-config.ps1"
+& "$PSScriptRoot\validator\validate-gateway-config.ps1"
 if ($LASTEXITCODE -ne 0) {
     Write-Host "`n[✖] 编译前配置深度体检未通过，已终止编译！" -ForegroundColor Red
     exit 1
