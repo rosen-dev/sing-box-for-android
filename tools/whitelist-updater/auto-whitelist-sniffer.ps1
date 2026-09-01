@@ -241,33 +241,29 @@ try {
                         Write-Host $destIp -ForegroundColor Yellow -NoNewline
                         Write-Host " (出站: $outbound, 规则: $rule)" -ForegroundColor DarkGray
 
-                        # 1. 尝试通过 PTR 反查域名
+                        # 1. 尝试通过 PTR 反查域名（作为辅助备注或附加规则）
                         $ptrDomain = Resolve-IpPtrDomain $destIp
+                        $ptrComment = ""
                         if ($ptrDomain) {
-                            $ptrRule = Extract-DomainRule $ptrDomain
-                            if ($ptrRule) {
-                                Write-Host "    ├─ [🔍 PTR 反查域名成功] $destIp -> $ptrDomain" -ForegroundColor Cyan
-                                $suggestedRule = $ptrRule
-                                $reason = "通过 PTR 反查为主域名规则"
-                            }
+                            $ptrComment = " # PTR: $ptrDomain"
+                            Write-Host "    ├─ [🔍 PTR 反查域名] $destIp -> $ptrDomain" -ForegroundColor Cyan
                         }
 
-                        # 2. 若反查无域名，生成 IP-CIDR 规则
-                        if (-not $suggestedRule) {
-                            $suggestedRule = "IP-CIDR,$destIp/32"
-                            $reason = "纯 IP 兜底规则"
-                        }
+                        # 2. 关键核心：纯 IP 通信必须注入 IP-CIDR 规则，Sing-box 才能在路由层真正放行原始 IP！
+                        $suggestedRule = "IP-CIDR,$destIp/32"
+                        $reason = if ($ptrDomain) { "原始 IP 直通 (PTR: $ptrDomain)" } else { "纯 IP 直通兜底" }
                     }
 
                     # 判断是否为全新规则
                     if ($suggestedRule -and (-not $knownRules.Contains($suggestedRule)) -and (-not $discoveredNewRules.Contains($suggestedRule))) {
                         $discoveredNewRules.Add($suggestedRule)
+                        $ruleWithComment = if ($ptrComment) { $suggestedRule + $ptrComment } else { $suggestedRule }
                         Write-Host "    └─ [💡 推荐自愈规则] " -ForegroundColor Cyan -NoNewline
-                        Write-Host $suggestedRule -ForegroundColor Green -NoNewline
+                        Write-Host $ruleWithComment -ForegroundColor Green -NoNewline
                         Write-Host (" (" + $reason + ")") -ForegroundColor Gray
 
                         if ($AutoApply) {
-                            Add-Content -Path $WhitelistYaml -Value ("  - " + $suggestedRule) -Encoding UTF8
+                            Add-Content -Path $WhitelistYaml -Value ("  - " + $ruleWithComment) -Encoding UTF8
                             $knownRules.Add($suggestedRule) | Out-Null
                             if ($suggestedRule.StartsWith("IP-CIDR,")) {
                                 $knownCidrs.Add($suggestedRule.Substring(8).Trim())
