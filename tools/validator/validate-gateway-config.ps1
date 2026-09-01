@@ -6,14 +6,14 @@
 #           第 2 层：官方原厂 Go 内核 (sing-box.exe check) 权威 Schema 与依赖闭环裁决
 # ======================================================================
 
-$ProjectRoot = Resolve-Path "$PSScriptRoot\.."
+$ProjectRoot = Resolve-Path "$PSScriptRoot\..\.."
 Set-Location $ProjectRoot
 
 $RulesDir = Join-Path $ProjectRoot "app\src\main\assets\gateway_rules"
 $GatewayDir = Join-Path $ProjectRoot "app\src\main\java\gateway"
 $VersionFile = Join-Path $ProjectRoot "app\libs\core-version.txt"
-$CliExe = Join-Path $PSScriptRoot "bin\sing-box.exe"
-$MatrixJsonPath = Join-Path $PSScriptRoot "schema\singbox_rules_matrix.json"
+$CliExe = Join-Path $ProjectRoot "tools\bin\sing-box.exe"
+$MatrixJsonPath = Join-Path $ProjectRoot "tools\schema\singbox_rules_matrix.json"
 
 Write-Host "================================================================" -ForegroundColor Cyan
 Write-Host "  Sing-box 网关配置全要素深度合规体检与原厂闭环诊断工具         " -ForegroundColor Cyan
@@ -275,7 +275,7 @@ Write-Host "`n[*] [步骤 4/5] 正在调用官方原厂 sing-box.exe 执行权�
 
 if (-not (Test-Path $CliExe)) {
     Write-Host " [!] 未在 tools/bin/ 找到 sing-box.exe，跳过原厂二进制自检。" -ForegroundColor Yellow
-    Write-Host "     (提示: 可随时运行 .\tools\updater\download-sing-box-cli.ps1 一键同步官方原厂 CLI 工具)" -ForegroundColor Gray
+    Write-Host "     (提示: 可随时运行 .\tools\validator\download-sing-box-cli.ps1 一键同步官方原厂 CLI 工具)" -ForegroundColor Gray
 } else {
     # 构造与 ConfigGenerator 100% 拓扑等价的模拟完整配置
     $mockConfig = @{

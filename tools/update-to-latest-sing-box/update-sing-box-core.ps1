@@ -95,7 +95,7 @@ try {
 
     # 自动联动执行配置兼容性诊断
     Write-Host "`n[*] 正在联动执行网关配置与规则集规范诊断..." -ForegroundColor Yellow
-    & "$PSScriptRoot\..\validate-gateway-config.ps1"
+    & "$ProjectRoot\tools\validator\validate-gateway-config.ps1"
 } catch {
     Write-Host "`n[✖] 核心库同步失败: $($_.Exception.Message)" -ForegroundColor Red
     Write-Host "【可能原因】" -ForegroundColor Yellow

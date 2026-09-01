@@ -1,8 +1,8 @@
-﻿$ProjectRoot = Resolve-Path "$PSScriptRoot\.."
+﻿$ProjectRoot = Resolve-Path "$PSScriptRoot\..\.."
 Set-Location $ProjectRoot
 
 $RulesDir = Join-Path $ProjectRoot "app\src\main\assets\gateway_rules"
-$ToolsLogsDir = Join-Path $PSScriptRoot "logs"
+$ToolsLogsDir = Join-Path $ProjectRoot "tools\logs"
 if (-not (Test-Path $ToolsLogsDir)) {
     New-Item -ItemType Directory -Path $ToolsLogsDir -Force | Out-Null
 }
