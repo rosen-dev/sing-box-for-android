@@ -40,11 +40,18 @@ try {
 }
 
 if (-not $isInteractiveConsole) {
-    Write-Host "`n[!] 提示: windows-chrome-auto-whitelist-sniffer.ps1 必须在您的真实终端中运行！" -ForegroundColor Yellow
-    Write-Host "    原因: 本工具需要拉起您桌面的 Chrome 浏览器图形窗口，并实时监听键盘回车键。" -ForegroundColor DarkGray
-    Write-Host "    👉 操作: 请在 Android Studio / IDE 下方的【Terminal 终端】中直接运行:" -ForegroundColor Cyan
-    Write-Host "       .\tools\whitelist-updater\windows-chrome-auto-whitelist-sniffer.ps1" -ForegroundColor Green
-    Write-Host "================================================================`n" -ForegroundColor Cyan
+    Write-Host "`n================================================================" -ForegroundColor Yellow
+    Write-Host " [!] 提示: 该脚本不能由 AI 助手后台自动执行，需由您在终端中运行" -ForegroundColor Yellow
+    Write-Host "================================================================" -ForegroundColor Yellow
+    Write-Host " 原因说明:" -ForegroundColor Cyan
+    Write-Host "   AI 在后台运行命令时无法弹出您电脑上的 Chrome 浏览器，也收不到您按的回车键。" -ForegroundColor DarkGray
+    Write-Host "`n 操作步骤:" -ForegroundColor Cyan
+    Write-Host "   1. 打开 Android Studio / IDE 下方的【Terminal（终端）】窗口" -ForegroundColor White
+    Write-Host "   2. 粘贴并运行以下命令:" -ForegroundColor White
+    Write-Host "      .\tools\whitelist-updater\windows-chrome-auto-whitelist-sniffer.ps1" -ForegroundColor Green
+    Write-Host "   3. 按提示输入要测试的网址，在弹出的 Chrome 中正常操作" -ForegroundColor White
+    Write-Host "   4. 操作完毕后回终端按【Enter 回车键】，脚本将自动捕获被拦截域名并补入白名单" -ForegroundColor White
+    Write-Host "================================================================`n" -ForegroundColor Yellow
     exit 0
 }
 
@@ -371,3 +378,4 @@ try {
     }
     Write-Host "================================================================" -ForegroundColor Cyan
 }
+
