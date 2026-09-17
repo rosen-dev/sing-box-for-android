@@ -1,0 +1,286 @@
+name: Auto Sync Client & Build APK
+
+on:
+  # 1. 核心编译工作流完成时自动联动触发
+  workflow_run:
+    workflows: ["Auto Build sing-box Core (libbox.aar)"]
+    types:
+      - completed
+  # 2. 定时巡检（每天检查两次）
+  schedule:
+    - cron: '30 */12 * * *'
+  # 3. 支持随时手动一键触发
+  workflow_dispatch:
+    inputs:
+      target_commit:
+        description: '官方客户端 Commit Hash (留空则自动从 sing-box/tree/testing/clients 解析)'
+        required: false
+        default: ''
+      force_build:
+        description: '是否强制编译打包 (即使未检测到版本变化)'
+        required: false
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+
+jobs:
+  sync-and-build:
+    name: Sync Client & Build APK
+    runs-on: ubuntu-latest
+    # 仅当不是 workflow_run 触发，或者 workflow_run 运行成功时才执行
+    if: ${{ github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success' }}
+
+    steps:
+      # ------------------------------------------------------------------
+      # 1. 检出当前项目代码 (包含完整 Git 历史供合并)
+      # ------------------------------------------------------------------
+      - name: Checkout Android App
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_branch || github.ref_name || 'feature/gateway' }}
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      # ------------------------------------------------------------------
+      # 2. 解析官方指定客户端 Commit 及核心版本
+      # ------------------------------------------------------------------
+      - name: Resolve Target Client Commit & Core Version
+        id: resolve-targets
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # 1. 解析目标客户端 Commit
+          # 优先读取 sing-box 官方 testing 分支 clients/android 子模块所指向的 commit
+          if [ -n "${{ github.event.inputs.target_commit }}" ]; then
+            CLIENT_COMMIT="${{ github.event.inputs.target_commit }}"
+            echo "使用手动指定的客户端 Commit: $CLIENT_COMMIT"
+          else
+            echo "正在查询 https://github.com/SagerNet/sing-box/tree/testing/clients/android 指向的 Commit..."
+            CLIENT_COMMIT=$(curl -sL https://api.github.com/repos/SagerNet/sing-box/contents/clients/android?ref=testing | jq -r .sha)
+          fi
+
+          if [ -z "$CLIENT_COMMIT" ] || [ "$CLIENT_COMMIT" = "null" ]; then
+            echo "错误: 无法解析官方 testing/clients/android 对应的 Commit Hash"
+            exit 1
+          fi
+          echo "目标官方客户端 Commit: $CLIENT_COMMIT"
+          echo "client_commit=$CLIENT_COMMIT" >> $GITHUB_OUTPUT
+
+          # 2. 解析官方最新稳定版核心 Release Tag (排查 beta/alpha/rc)
+          CORE_TAG=$(curl -sL https://api.github.com/repos/SagerNet/sing-box/releases/latest | jq -r 'select(.prerelease == false and .draft == false) | .tag_name')
+          if [ -z "$CORE_TAG" ] || [ "$CORE_TAG" = "null" ]; then
+            echo "警告: 无法通过 API 解析到最新正式版 Tag，尝试从已有 core-latest Release 识别..."
+            CORE_TAG="v1.14.0"
+          fi
+          echo "官方最新正式版 Core Tag: $CORE_TAG"
+          echo "core_tag=$CORE_TAG" >> $GITHUB_OUTPUT
+
+          # 3. 检查本地记录的核心版本
+          LOCAL_CORE=""
+          if [ -f "app/libs/core-version.txt" ]; then
+            LOCAL_CORE=$(cat app/libs/core-version.txt | tr -d '[:space:]')
+          fi
+          echo "本地分支当前 Core 版本: $LOCAL_CORE"
+
+          # 4. 判断客户端 Commit 是否已经被当前分支包含
+          git remote add upstream https://github.com/SagerNet/sing-box-for-android.git 2>/dev/null || true
+          git fetch upstream "$CLIENT_COMMIT" --quiet || {
+            echo "获取指定 Commit 失败，尝试拉取 upstream main 分支..."
+            git fetch upstream main --quiet
+          }
+
+          CLIENT_ALREADY_MERGED="false"
+          if git merge-base --is-ancestor "$CLIENT_COMMIT" HEAD 2>/dev/null; then
+            echo "客户端目标 Commit ($CLIENT_COMMIT) 已经合并在当前分支中。"
+            CLIENT_ALREADY_MERGED="true"
+          else
+            echo "检测到客户端有新提交待合并: $CLIENT_COMMIT"
+          fi
+
+          # 5. 综合决策是否执行编译
+          FORCE_BUILD="${{ github.event.inputs.force_build }}"
+          if [ "$FORCE_BUILD" = "true" ]; then
+            echo "收到 force_build 指令，强制执行合并与打包！"
+            echo "should_build=true" >> $GITHUB_OUTPUT
+          elif [ "$CLIENT_ALREADY_MERGED" != "true" ]; then
+            echo "客户端有更新，执行合并与打包！"
+            echo "should_build=true" >> $GITHUB_OUTPUT
+          elif [ "$LOCAL_CORE" != "$CORE_TAG" ]; then
+            echo "检测到核心版本不一致 ($LOCAL_CORE -> $CORE_TAG)，执行更新与打包！"
+            echo "should_build=true" >> $GITHUB_OUTPUT
+          elif [ "${{ github.event_name }}" = "workflow_run" ]; then
+            echo "由 core 编译工作流完成触发，执行打包！"
+            echo "should_build=true" >> $GITHUB_OUTPUT
+          else
+            echo "所有依赖均为最新，无需重复打包。"
+            echo "should_build=false" >> $GITHUB_OUTPUT
+          fi
+
+      # ------------------------------------------------------------------
+      # 3. 自动合并官方客户端代码 (严格保护所有自定义功能)
+      # ------------------------------------------------------------------
+      - name: Merge Upstream Client Code
+        if: steps.resolve-targets.outputs.should_build == 'true'
+        run: |
+          CLIENT_COMMIT="${{ steps.resolve-targets.outputs.client_commit }}"
+          
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          echo "正在合入官方客户端 commit: $CLIENT_COMMIT ..."
+          
+          if ! git merge-base --is-ancestor "$CLIENT_COMMIT" HEAD 2>/dev/null; then
+            git merge "$CLIENT_COMMIT" -m "sync: merge official client commit $CLIENT_COMMIT from sing-box testing/clients" || {
+              echo "检测到轻微冲突，正在自动执行自愈策略以保留全部自定义功能..."
+              
+              # 1. 绝对优先保留本地自定义的四大资产目录
+              git checkout --ours app/src/main/assets/gateway_rules/ 2>/dev/null || true
+              git checkout --ours app/src/main/java/gateway/ 2>/dev/null || true
+              git checkout --ours tools/ 2>/dev/null || true
+              git checkout --ours app/release.keystore 2>/dev/null || true
+              git checkout --ours .github/ 2>/dev/null || true
+              
+              # 2. 检查并自愈 BoxService.kt 中的 GatewayHook 注入点
+              if ! grep -q "gateway.GatewayHook.transformConfig" app/src/main/java/io/nekohasekai/sfa/bg/BoxService.kt; then
+                echo "正在自愈修复 BoxService.kt 中的 GatewayHook 注入点..."
+                sed -i 's/val content = File(profile.typed.path).readText()/val content = gateway.GatewayHook.transformConfig(service, File(profile.typed.path).readText())/g' app/src/main/java/io/nekohasekai/sfa/bg/BoxService.kt
+              fi
+              
+              git add .
+              git commit -m "sync: resolve merge conflicts and preserve gateway modules"
+            }
+            echo "客户端代码合并成功！"
+          else
+            echo "当前代码已包含目标客户端提交，跳过重复 merge。"
+          fi
+
+      # ------------------------------------------------------------------
+      # 4. 从 GitHub Releases 下载已编译好的最新 libbox.aar
+      # ------------------------------------------------------------------
+      - name: Fetch Precompiled libbox.aar
+        if: steps.resolve-targets.outputs.should_build == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          mkdir -p app/libs
+          echo "正在从仓库 core-latest Release 下载预编译的 libbox.aar ..."
+          
+          gh release download "core-latest" \
+            --repo "${{ github.repository }}" \
+            --pattern "libbox.aar" \
+            --dir app/libs \
+            --clobber
+            
+          ls -lh app/libs/libbox.aar
+          
+          # 更新本地版本标记
+          CORE_TAG="${{ steps.resolve-targets.outputs.core_tag }}"
+          echo "$CORE_TAG" > app/libs/core-version.txt
+          echo "本地核心版本文件已记录为: $CORE_TAG"
+
+      # ------------------------------------------------------------------
+      # 5. 配置 Android 编译环境 (Java 17 + NDK r28 + Gradle)
+      # ------------------------------------------------------------------
+      - name: Set up Java 17
+        if: steps.resolve-targets.outputs.should_build == 'true'
+        uses: actions/setup-java@v5
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Setup Android NDK
+        if: steps.resolve-targets.outputs.should_build == 'true'
+        uses: nttld/setup-ndk@v1
+        with:
+          ndk-version: r28
+          add-to-path: true
+
+      - name: Setup Gradle
+        if: steps.resolve-targets.outputs.should_build == 'true'
+        uses: gradle/actions/setup-gradle@v3
+
+      # ------------------------------------------------------------------
+      # 6. 编译已签名的 Release APK
+      # ------------------------------------------------------------------
+      - name: Build Release APK
+        if: steps.resolve-targets.outputs.should_build == 'true'
+        env:
+          KEYSTORE_PASS: ${{ secrets.KEYSTORE_PASS || 'gateway123456' }}
+          ALIAS_NAME: ${{ secrets.ALIAS_NAME || 'singbox-key' }}
+          ALIAS_PASS: ${{ secrets.ALIAS_PASS || 'gateway123456' }}
+        run: |
+          chmod +x gradlew
+          
+          # 写入签名属性到 local.properties
+          cat <<EOF > local.properties
+          KEYSTORE_PASS=${KEYSTORE_PASS}
+          ALIAS_NAME=${ALIAS_NAME}
+          ALIAS_PASS=${ALIAS_PASS}
+          EOF
+          
+          echo "开始执行 Gradle assembleOtherRelease 编译..."
+          ./gradlew assembleOtherRelease --stacktrace
+          
+          mkdir -p dist_apk
+          find app/build/outputs/apk/other/release/ -name "*.apk" -exec cp {} dist_apk/ \;
+          echo "编译完成，生成的 APK 列表:"
+          ls -lh dist_apk/
+
+      # ------------------------------------------------------------------
+      # 7. 发布 APK 安装包至 GitHub Releases
+      # ------------------------------------------------------------------
+      - name: Publish APK to GitHub Releases
+        if: steps.resolve-targets.outputs.should_build == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          CORE_TAG="${{ steps.resolve-targets.outputs.core_tag }}"
+          CLIENT_COMMIT="${{ steps.resolve-targets.outputs.client_commit }}"
+          SHORT_COMMIT=$(echo "$CLIENT_COMMIT" | cut -c1-7)
+          APP_VER=$(grep 'VERSION_NAME=' version.properties | cut -d'=' -f2 | tr -d '[:space:]')
+          
+          RELEASE_TAG="app-${CORE_TAG}-${SHORT_COMMIT}"
+          
+          echo "正在发布版本 Release: ${RELEASE_TAG} ..."
+          gh release create "${RELEASE_TAG}" dist_apk/*.apk \
+            --repo "${{ github.repository }}" \
+            --title "sing-box Android ${APP_VER} (Core ${CORE_TAG})" \
+            --notes "### 自动构建成功
+          - **sing-box 核心版本**: \`${CORE_TAG}\` (稳定 Release 版)
+          - **客户端源码 Commit**: [\`${SHORT_COMMIT}\`](https://github.com/SagerNet/sing-box-for-android/commit/${CLIENT_COMMIT}) (对应官方 \`sing-box/testing/clients/android\`)
+          - **自定义功能完整保留**:
+            -  Gateway 自动路由与节点转换引擎
+            -  4 大独立 YAML 规则集 (assets/gateway_rules)
+            -  全套 tools 维护与嗅探工具链
+            -  专属 release.keystore 官方签名 (支持手机平滑覆盖安装)
+          - **安装方式**: 请在下方资产列表中直接下载对应架构的 \`.apk\` (一般手机选择 \`arm64-v8a\` 或 \`universal\`) 进行安装。" \
+            --clobber || true
+
+          echo "正在更新持久化的 'app-latest' Release (供手机随时下载最新安装包)..."
+          gh release create "app-latest" dist_apk/*.apk \
+            --repo "${{ github.repository }}" \
+            --title "sing-box Android 最新安装包" \
+            --notes "最新构建: Core ${CORE_TAG} | Client ${SHORT_COMMIT} | 版本 ${APP_VER}" \
+            --clobber || true
+
+      # ------------------------------------------------------------------
+      # 8. 将合并后的最新代码和版本记录推送到 GitHub 仓库
+      # ------------------------------------------------------------------
+      - name: Push Updated Branch to GitHub
+        if: steps.resolve-targets.outputs.should_build == 'true'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          
+          git add app/libs/core-version.txt
+          git commit -m "chore(sync): sync client commit and update core version to ${{ steps.resolve-targets.outputs.core_tag }}" || true
+          
+          CURRENT_BRANCH=$(git branch --show-current)
+          if [ -z "$CURRENT_BRANCH" ]; then
+            CURRENT_BRANCH="${{ github.event.workflow_run.head_branch || github.ref_name || 'feature/gateway' }}"
+          fi
+          
+          echo "正在推送更新后的代码到 origin ${CURRENT_BRANCH} ..."
+          git push origin HEAD:${CURRENT_BRANCH}
