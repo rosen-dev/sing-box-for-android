@@ -244,10 +244,14 @@ jobs:
           RELEASE_TAG="app-${CORE_TAG}-${SHORT_COMMIT}"
           
           echo "正在发布版本 Release: ${RELEASE_TAG} ..."
-          gh release create "${RELEASE_TAG}" dist_apk/*.apk \
-            --repo "${{ github.repository }}" \
-            --title "sing-box Android ${APP_VER} (Core ${CORE_TAG})" \
-            --notes "### 自动构建成功
+          if gh release view "${RELEASE_TAG}" --repo "${{ github.repository }}" >/dev/null 2>&1; then
+            echo "Release ${RELEASE_TAG} already exists. Uploading/overwriting APKs..."
+            gh release upload "${RELEASE_TAG}" dist_apk/*.apk --repo "${{ github.repository }}" --clobber
+          else
+            gh release create "${RELEASE_TAG}" dist_apk/*.apk \
+              --repo "${{ github.repository }}" \
+              --title "sing-box Android ${APP_VER} (Core ${CORE_TAG})" \
+              --notes "### 自动构建成功
           - **sing-box 核心版本**: \`${CORE_TAG}\` (稳定 Release 版)
           - **客户端源码 Commit**: [\`${SHORT_COMMIT}\`](https://github.com/SagerNet/sing-box-for-android/commit/${CLIENT_COMMIT}) (对应官方 \`sing-box/testing/clients/android\`)
           - **自定义功能完整保留**:
@@ -255,15 +259,20 @@ jobs:
             -  4 大独立 YAML 规则集 (assets/gateway_rules)
             -  全套 tools 维护与嗅探工具链
             -  专属 release.keystore 官方签名 (支持手机平滑覆盖安装)
-          - **安装方式**: 请在下方资产列表中直接下载对应架构的 \`.apk\` (一般手机选择 \`arm64-v8a\` 或 \`universal\`) 进行安装。" \
-            --clobber || true
+          - **安装方式**: 请在下方资产列表中直接下载对应架构的 \`.apk\` (一般手机选择 \`arm64-v8a\` 或 \`universal\`) 进行安装。"
+          fi
 
           echo "正在更新持久化的 'app-latest' Release (供手机随时下载最新安装包)..."
-          gh release create "app-latest" dist_apk/*.apk \
-            --repo "${{ github.repository }}" \
-            --title "sing-box Android 最新安装包" \
-            --notes "最新构建: Core ${CORE_TAG} | Client ${SHORT_COMMIT} | 版本 ${APP_VER}" \
-            --clobber || true
+          if gh release view "app-latest" --repo "${{ github.repository }}" >/dev/null 2>&1; then
+            echo "Release app-latest already exists. Uploading/overwriting APKs..."
+            gh release upload "app-latest" dist_apk/*.apk --repo "${{ github.repository }}" --clobber
+            gh release edit "app-latest" --repo "${{ github.repository }}" --title "sing-box Android 最新安装包" --notes "最新构建: Core ${CORE_TAG} | Client ${SHORT_COMMIT} | 版本 ${APP_VER}"
+          else
+            gh release create "app-latest" dist_apk/*.apk \
+              --repo "${{ github.repository }}" \
+              --title "sing-box Android 最新安装包" \
+              --notes "最新构建: Core ${CORE_TAG} | Client ${SHORT_COMMIT} | 版本 ${APP_VER}"
+          fi
 
       # ------------------------------------------------------------------
       # 8. 将合并后的最新代码和版本记录推送到 GitHub 仓库
