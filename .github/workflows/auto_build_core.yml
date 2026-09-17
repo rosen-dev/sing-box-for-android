@@ -131,20 +131,30 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TARGET_VER: ${{ steps.get-version.outputs.target_version }}
-        run: |
           # 1. Update/Create Release for this specific version tag
-          gh release create "${TARGET_VER}" dist/libbox.aar \
-            --repo "${{ github.repository }}" \
-            --title "sing-box core ${TARGET_VER}" \
-            --notes "Automated build of libbox.aar from official SagerNet/sing-box ${TARGET_VER}" \
-            --clobber
+          if gh release view "${TARGET_VER}" --repo "${{ github.repository }}" >/dev/null 2>&1; then
+            echo "Release ${TARGET_VER} already exists. Uploading/overwriting asset..."
+            gh release upload "${TARGET_VER}" dist/libbox.aar --repo "${{ github.repository }}" --clobber
+          else
+            echo "Creating release for ${TARGET_VER}..."
+            gh release create "${TARGET_VER}" dist/libbox.aar \
+              --repo "${{ github.repository }}" \
+              --title "sing-box core ${TARGET_VER}" \
+              --notes "Automated build of libbox.aar from official SagerNet/sing-box ${TARGET_VER}"
+          fi
 
           # 2. Update/Create the persistent 'core-latest' Release for permanent direct downloading
-          gh release create "core-latest" dist/libbox.aar \
-            --repo "${{ github.repository }}" \
-            --title "sing-box core (Latest)" \
-            --notes "Latest official sing-box core build: ${TARGET_VER}" \
-            --clobber
+          if gh release view "core-latest" --repo "${{ github.repository }}" >/dev/null 2>&1; then
+            echo "Release core-latest already exists. Uploading/overwriting asset..."
+            gh release upload "core-latest" dist/libbox.aar --repo "${{ github.repository }}" --clobber
+            gh release edit "core-latest" --repo "${{ github.repository }}" --title "sing-box core (Latest)" --notes "Latest official sing-box core build: ${TARGET_VER}"
+          else
+            echo "Creating persistent release core-latest..."
+            gh release create "core-latest" dist/libbox.aar \
+              --repo "${{ github.repository }}" \
+              --title "sing-box core (Latest)" \
+              --notes "Latest official sing-box core build: ${TARGET_VER}"
+          fi
 
       - name: Update Version File & Push to Repository
         if: steps.get-version.outputs.skip_build != 'true'
