@@ -131,6 +131,7 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TARGET_VER: ${{ steps.get-version.outputs.target_version }}
+        run: |
           # 1. Update/Create Release for this specific version tag
           if gh release view "${TARGET_VER}" --repo "${{ github.repository }}" >/dev/null 2>&1; then
             echo "Release ${TARGET_VER} already exists. Uploading/overwriting asset..."
