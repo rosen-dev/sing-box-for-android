@@ -167,7 +167,7 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           
-          git add app/libs/core-version.txt
+          git add -f app/libs/core-version.txt
           git commit -m "chore(core): auto update core version to ${TARGET_VER}" || true
           
           CURRENT_BRANCH=$(git branch --show-current)
