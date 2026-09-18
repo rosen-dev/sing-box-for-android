@@ -10,7 +10,7 @@ object ConfigGenerator {
 
     private val NON_PHYSICAL_TYPES = setOf("selector", "urltest", "direct", "block", "dns")
 
-    fun generate(context: Context, original: JSONObject): String {
+    fun generate(context: Context, original: JSONObject, remoteUrl: String? = null): String {
         val result = JSONObject()
 
         // 1. 继承 log (若有)
@@ -33,7 +33,7 @@ object ConfigGenerator {
         result.put("outbounds", buildOutbounds(original))
 
         // 6. 自定义 5 层路由规则与本地 RuleSet 绑定 (声明 default_domain_resolver 与私有 IP 原生直连)
-        result.put("route", buildRoute(context))
+        result.put("route", buildRoute(context, remoteUrl))
 
         // 7. 继承 experimental (按 1.14.0 标准启用 store_dns 与 clash_api)
         val experimental = original.optJSONObject("experimental") ?: JSONObject()
@@ -185,7 +185,7 @@ object ConfigGenerator {
         return outboundsArray
     }
 
-    private fun buildRoute(context: Context): JSONObject {
+    private fun buildRoute(context: Context, remoteUrl: String? = null): JSONObject {
         val route = JSONObject()
         val rules = JSONArray()
 
@@ -246,6 +246,25 @@ object ConfigGenerator {
             put("action", "reject")
         })
 
+        // 1.5 远程订阅地址动态白名单 -> PROXY (确保更新订阅流量走代理，不被 final: block 阻断)
+        val subHost = extractSubscriptionHost(remoteUrl)
+        if (subHost != null) {
+            val (host, isIp, isIpv6) = subHost
+            rules.put(JSONObject().apply {
+                if (isIp) {
+                    val cidr = if (isIpv6) "$host/128" else "$host/32"
+                    put("ip_cidr", JSONArray().put(cidr))
+                } else {
+                    put("domain", JSONArray().put(host))
+                    put("domain_suffix", JSONArray().put(host))
+                }
+                put("outbound", GatewayConstants.TAG_PROXY)
+            })
+            Log.i(GatewayConstants.TAG, "[ConfigGenerator] [订阅白名单] 成功动态注入订阅服务器白名单规则: host=$host, isIp=$isIp, isIpv6=$isIpv6 -> ${GatewayConstants.TAG_PROXY}")
+        } else {
+            Log.i(GatewayConstants.TAG, "[ConfigGenerator] [订阅白名单] 当前配置无有效远程订阅 URL（本地配置或为空），跳过动态白名单注入")
+        }
+
         // 2. 优先级白名单 -> PROXY
         rules.put(JSONObject().apply {
             put("rule_set", GatewayConstants.TAG_RULESET_PRIORITY_WHITELIST)
@@ -301,5 +320,44 @@ object ConfigGenerator {
         Log.i(GatewayConstants.TAG, "[ConfigGenerator] 组装 5 层路由规则完成 (default_domain_resolver: dns-direct, ip_is_private: direct)")
 
         return route
+    }
+
+    data class SubscriptionHost(val host: String, val isIp: Boolean, val isIpv6: Boolean = false)
+
+    /**
+     * 从订阅 URL 中安全提取目标 Host (域名或 IP)，自动过滤路径与参数
+     */
+    private fun extractSubscriptionHost(rawUrl: String?): SubscriptionHost? {
+        val trimmed = rawUrl?.trim() ?: return null
+        if (trimmed.isEmpty()) return null
+
+        val host = try {
+            val normalized = if (!trimmed.contains("://")) "http://$trimmed" else trimmed
+            val uri = java.net.URI(normalized)
+            uri.host ?: android.net.Uri.parse(normalized).host
+        } catch (e: Throwable) {
+            Log.w(GatewayConstants.TAG, "[ConfigGenerator] [订阅白名单] 标准 URI 解析警告: ${e.message}，尝试 Android Uri 解析")
+            try {
+                android.net.Uri.parse(if (!trimmed.contains("://")) "http://$trimmed" else trimmed).host
+            } catch (ex: Throwable) {
+                Log.e(GatewayConstants.TAG, "[ConfigGenerator] [订阅白名单] URL 解析失败: ${ex.message}")
+                null
+            }
+        } ?: run {
+            Log.w(GatewayConstants.TAG, "[ConfigGenerator] [订阅白名单] 无法从 URL 中解析出 Host: $trimmed")
+            return null
+        }
+
+        val cleanHost = host.trim().lowercase().trim('[', ']')
+        if (cleanHost.isEmpty()) {
+            Log.w(GatewayConstants.TAG, "[ConfigGenerator] [订阅白名单] 提取的主机名为空，跳过放行: $trimmed")
+            return null
+        }
+
+        val isIpv4 = cleanHost.matches(Regex("""^(\d{1,3}\.){3}\d{1,3}$"""))
+        val isIpv6 = cleanHost.contains(":")
+        val isIp = isIpv4 || isIpv6
+        Log.i(GatewayConstants.TAG, "[ConfigGenerator] [订阅白名单] 成功从订阅 URL 提取目标 Host: $cleanHost (isIp=$isIp, isIpv6=$isIpv6)")
+        return SubscriptionHost(cleanHost, isIp, isIpv6)
     }
 }
