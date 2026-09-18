@@ -9,8 +9,7 @@ build/
 .externalNativeBuild
 .cxx
 local.properties
-/app/libs/*
-!/app/libs/core-version.txt
+/app/libs/
 /service-account-credentials.json
 /CLAUDE.md
 /.claude/
