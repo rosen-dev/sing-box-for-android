@@ -121,7 +121,7 @@ class BoxService(private val service: Service, private val platformInterface: Pl
                 return
             }
 
-            val content = gateway.GatewayHook.transformConfig(service, File(profile.typed.path).readText())
+            val content = gateway.GatewayHook.transformConfig(service, File(profile.typed.path).readText(), profile.typed.remoteURL)
             if (content.isBlank()) {
                 stopAndAlert(Alert.EmptyConfiguration)
                 return
@@ -210,7 +210,7 @@ class BoxService(private val service: Service, private val platformInterface: Pl
             return
         }
 
-        val content = gateway.GatewayHook.transformConfig(service, File(profile.typed.path).readText())
+        val content = gateway.GatewayHook.transformConfig(service, File(profile.typed.path).readText(), profile.typed.remoteURL)
         if (content.isBlank()) {
             stopAndAlert(Alert.EmptyConfiguration)
             return

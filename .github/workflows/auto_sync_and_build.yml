@@ -195,7 +195,7 @@ jobs:
               # 2. 检查并自愈 BoxService.kt 中的 GatewayHook 注入点
               if ! grep -q "gateway.GatewayHook.transformConfig" app/src/main/java/io/nekohasekai/sfa/bg/BoxService.kt; then
                 echo "正在自愈修复 BoxService.kt 中的 GatewayHook 注入点..."
-                sed -i 's/val content = File(profile.typed.path).readText()/val content = gateway.GatewayHook.transformConfig(service, File(profile.typed.path).readText())/g' app/src/main/java/io/nekohasekai/sfa/bg/BoxService.kt
+                sed -i 's/val content = File(profile.typed.path).readText()/val content = gateway.GatewayHook.transformConfig(service, File(profile.typed.path).readText(), profile.typed.remoteURL)/g' app/src/main/java/io/nekohasekai/sfa/bg/BoxService.kt
               fi
               
               git add .
