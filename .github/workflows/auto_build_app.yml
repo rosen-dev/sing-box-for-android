@@ -77,12 +77,15 @@ jobs:
           echo "官方最新正式版 Core Tag: $CORE_TAG"
           echo "core_tag=$CORE_TAG" >> $GITHUB_OUTPUT
 
-          # 3. 检查本地记录的核心版本
-          LOCAL_CORE=""
-          if [ -f "app/libs/core-version.txt" ]; then
-            LOCAL_CORE=$(cat app/libs/core-version.txt | tr -d '[:space:]')
+          SHORT_COMMIT=$(echo "$CLIENT_COMMIT" | cut -c1-7)
+          RELEASE_TAG="app-${CORE_TAG}-${SHORT_COMMIT}"
+
+          # 3. 检查该版本的 App Release 安装包是否已经生成过
+          RELEASE_EXISTS="false"
+          if gh release view "${RELEASE_TAG}" --repo "${{ github.repository }}" >/dev/null 2>&1; then
+            echo "Release ${RELEASE_TAG} 已存在！"
+            RELEASE_EXISTS="true"
           fi
-          echo "本地分支当前 Core 版本: $LOCAL_CORE"
 
           # 4. 判断客户端 Commit 是否已经被当前分支包含
           git remote add upstream https://github.com/SagerNet/sing-box-for-android.git 2>/dev/null || true
@@ -98,6 +101,7 @@ jobs:
           else
             echo "检测到客户端有新提交待合并: $CLIENT_COMMIT"
           fi
+          echo "client_already_merged=$CLIENT_ALREADY_MERGED" >> $GITHUB_OUTPUT
 
           # 5. 综合决策是否执行编译
           FORCE_BUILD="${{ github.event.inputs.force_build }}"
@@ -105,16 +109,16 @@ jobs:
             echo "收到 force_build 指令，强制执行合并与打包！"
             echo "should_build=true" >> $GITHUB_OUTPUT
           elif [ "$CLIENT_ALREADY_MERGED" != "true" ]; then
-            echo "客户端有更新，执行合并与打包！"
+            echo "客户端有更新待合并，执行合并与打包！"
             echo "should_build=true" >> $GITHUB_OUTPUT
-          elif [ "$LOCAL_CORE" != "$CORE_TAG" ]; then
-            echo "检测到核心版本不一致 ($LOCAL_CORE -> $CORE_TAG)，执行更新与打包！"
+          elif [ "$RELEASE_EXISTS" != "true" ]; then
+            echo "检测到尚未发布 ${RELEASE_TAG} 安装包，执行打包！"
             echo "should_build=true" >> $GITHUB_OUTPUT
           elif [ "${{ github.event_name }}" = "workflow_run" ]; then
-            echo "由 core 编译工作流完成触发，执行打包！"
+            echo "由 core 编译工作流触发，执行打包！"
             echo "should_build=true" >> $GITHUB_OUTPUT
           else
-            echo "所有依赖均为最新，无需重复打包。"
+            echo "目标客户端代码已包含且对应 Release 已发布，无需重复打包。"
             echo "should_build=false" >> $GITHUB_OUTPUT
           fi
 
@@ -174,11 +178,6 @@ jobs:
             --clobber
             
           ls -lh app/libs/libbox.aar
-          
-          # 更新本地版本标记
-          CORE_TAG="${{ steps.resolve-targets.outputs.core_tag }}"
-          echo "$CORE_TAG" > app/libs/core-version.txt
-          echo "本地核心版本文件已记录为: $CORE_TAG"
 
       # ------------------------------------------------------------------
       # 5. 配置 Android 编译环境 (Java 17 + NDK r28 + Gradle)
@@ -275,21 +274,15 @@ jobs:
           fi
 
       # ------------------------------------------------------------------
-      # 8. 将合并后的最新代码和版本记录推送到 GitHub 仓库
+      # 8. 将合并官方客户端后的最新代码推送到 GitHub 仓库
       # ------------------------------------------------------------------
       - name: Push Updated Branch to GitHub
-        if: steps.resolve-targets.outputs.should_build == 'true'
+        if: steps.resolve-targets.outputs.should_build == 'true' && steps.resolve-targets.outputs.client_already_merged != 'true'
         run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          
-          git add -f app/libs/core-version.txt
-          git commit -m "chore(sync): sync client commit and update core version to ${{ steps.resolve-targets.outputs.core_tag }}" || true
-          
           CURRENT_BRANCH=$(git branch --show-current)
           if [ -z "$CURRENT_BRANCH" ]; then
             CURRENT_BRANCH="${{ github.event.workflow_run.head_branch || github.ref_name || 'feature/gateway' }}"
           fi
           
-          echo "正在推送更新后的代码到 origin ${CURRENT_BRANCH} ..."
+          echo "正在推送合并官方客户端更新后的代码到 origin ${CURRENT_BRANCH} ..."
           git push origin HEAD:${CURRENT_BRANCH}

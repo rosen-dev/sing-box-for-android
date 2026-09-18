@@ -56,28 +56,12 @@ jobs:
             exit 0
           fi
 
-          # 3. 双重比对：检查本地 core-version.txt 和远程 Release 是否已经包含该版本
-          LOCAL_VER=""
-          if [ -f "app/libs/core-version.txt" ]; then
-            LOCAL_VER=$(cat app/libs/core-version.txt | tr -d '[:space:]')
-          fi
-          echo "Current recorded local core version: '$LOCAL_VER'"
-
-          RELEASE_EXISTS="false"
+          # 3. 检查本仓库中是否已存在该版本的 Release
           if gh release view "$TAG" --repo "${{ github.repository }}" >/dev/null 2>&1; then
-            RELEASE_EXISTS="true"
-          fi
-          echo "GitHub release for '$TAG' exists: $RELEASE_EXISTS"
-
-          if [ "$LOCAL_VER" = "$TAG" ] && [ "$RELEASE_EXISTS" = "true" ]; then
-            echo "Version $TAG has already been compiled and released in this repository. Skipping compilation!"
-            echo "skip_build=true" >> $GITHUB_OUTPUT
-          elif [ "$RELEASE_EXISTS" = "true" ]; then
-            echo "Release $TAG already exists remotely. Updating local record and skipping compilation!"
-            echo "$TAG" > app/libs/core-version.txt
+            echo "Release for $TAG already exists in this repository. Skipping compilation!"
             echo "skip_build=true" >> $GITHUB_OUTPUT
           else
-            echo "New version detected ($TAG). Proceeding with compilation..."
+            echo "Release for $TAG does not exist yet. Proceeding with compilation..."
             echo "skip_build=false" >> $GITHUB_OUTPUT
           fi
 
@@ -155,22 +139,4 @@ jobs:
               --repo "${{ github.repository }}" \
               --title "sing-box core (Latest)" \
               --notes "Latest official sing-box core build: ${TARGET_VER}"
-          fi
-
-      - name: Update Version File & Push to Repository
-        if: steps.get-version.outputs.skip_build != 'true'
-        run: |
-          TARGET_VER="${{ steps.get-version.outputs.target_version }}"
-          mkdir -p app/libs
-          echo "${TARGET_VER}" > app/libs/core-version.txt
-          
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          
-          git add -f app/libs/core-version.txt
-          git commit -m "chore(core): auto update core version to ${TARGET_VER}" || true
-          
-          CURRENT_BRANCH=$(git branch --show-current)
-          if [ -n "$CURRENT_BRANCH" ]; then
-            git push origin ${CURRENT_BRANCH} || true
           fi
