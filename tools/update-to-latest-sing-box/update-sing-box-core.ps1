@@ -1,4 +1,4 @@
-param(
+﻿param(
     [switch]$Force
 )
 
@@ -51,7 +51,7 @@ if ($Force) {
     
     # 自动联动执行配置兼容性诊断
     Write-Host "`n[*] 正在联动执行网关配置与规则集规范诊断..." -ForegroundColor Yellow
-    & "$PSScriptRoot\..\validate-gateway-config.ps1"
+    & "$ProjectRoot\tools\validator\validate-gateway-config.ps1"
     exit 0
 } else {
     if ($localVersion) {
