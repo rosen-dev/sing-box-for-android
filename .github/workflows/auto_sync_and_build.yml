@@ -52,7 +52,7 @@ jobs:
             TAG="${{ github.event.inputs.force_version }}"
             echo "使用手动指定的官方核心版本: $TAG"
           else
-            TAG=$(curl -sL https://api.github.com/repos/SagerNet/sing-box/releases/latest | jq -r 'select(.prerelease == false and .draft == false) | .tag_name')
+            TAG=$(curl -sL -H "Authorization: Bearer $GH_TOKEN" https://api.github.com/repos/SagerNet/sing-box/releases/latest | jq -r 'select(.prerelease == false and .draft == false) | .tag_name')
             echo "解析到官方最新正式版核心: $TAG"
           fi
 
@@ -68,7 +68,7 @@ jobs:
             echo "使用手动指定的客户端 Commit: $CLIENT_COMMIT"
           else
             echo "正在查询 https://github.com/SagerNet/sing-box/tree/testing/clients/android 指向的 Commit..."
-            CLIENT_COMMIT=$(curl -sL https://api.github.com/repos/SagerNet/sing-box/contents/clients/android?ref=testing | jq -r .sha)
+            CLIENT_COMMIT=$(curl -sL -H "Authorization: Bearer $GH_TOKEN" https://api.github.com/repos/SagerNet/sing-box/contents/clients/android?ref=testing | jq -r .sha)
           fi
 
           if [ -z "$CLIENT_COMMIT" ] || [ "$CLIENT_COMMIT" = "null" ]; then
@@ -223,16 +223,15 @@ jobs:
           chmod +x gradlew
           
           # 写入签名属性到 local.properties
-          cat <<EOF > local.properties
-          KEYSTORE_PASS=${KEYSTORE_PASS}
-          ALIAS_NAME=${ALIAS_NAME}
-          ALIAS_PASS=${ALIAS_PASS}
-          EOF
+          echo "KEYSTORE_PASS=${KEYSTORE_PASS}" > local.properties
+          echo "ALIAS_NAME=${ALIAS_NAME}" >> local.properties
+          echo "ALIAS_PASS=${ALIAS_PASS}" >> local.properties
           
           echo "开始执行 Gradle assembleOtherRelease 编译正式版 APK..."
           ./gradlew assembleOtherRelease --stacktrace
           
           # 收集所有架构的 Release APK 到 dist 目录
+          mkdir -p dist
           find app/build/outputs/apk/other/release/ -name "*.apk" -exec cp {} dist/ \;
           echo "打包完成，dist/ 待发布资产清单:"
           ls -lh dist/
@@ -253,32 +252,35 @@ jobs:
           echo "正在发布统一的 GitHub Release (${TARGET_VER}) ..."
           
           RELEASE_TITLE="sing-box Android ${APP_VER} (Core ${TARGET_VER})"
-          RELEASE_NOTES="### 🌟 sing-box Gateway Android 正式发布 (${TARGET_VER})
 
-- **官方 sing-box 核心**: \`${TARGET_VER}\` (稳定正式版)
-- **官方客户端代码**: [\`${SHORT_COMMIT}\`](https://github.com/SagerNet/sing-box-for-android/commit/${CLIENT_COMMIT}) (来自 \`sing-box/testing/clients/android\`)
-- **集成自定义特性**:
-  -  Gateway 局域网混合代理网关 (0.0.0.0:8899)
-  -  全自动节点解析与单一 PROXY 代理组集成
-  -  4 大 YAML 规则集引擎与零信任分流白名单
-  -  专属签名固化 (支持手机直接覆盖安装)
-  -  全套 tools 维护与嗅探诊断工具链
-
----
-### 📦 下载与安装说明
-- **手机安装使用**：请在下方直接下载对应的 \`.apk\` 文件安装（现代主流手机请优先选择 \`arm64-v8a\` 或 \`universal\`）。
-- **本地开发同步**：如需在电脑本地进行开发调试，下方附带预编译的 \`libbox.aar\`，本地运行 \`update-sing-box-core.ps1\` 可自动直接拉取。"
+          {
+            echo "### 🌟 sing-box Gateway Android 正式发布 (${TARGET_VER})"
+            echo ""
+            echo "- **官方 sing-box 核心**: \`${TARGET_VER}\` (稳定正式版)"
+            echo "- **官方客户端代码**: [\`${SHORT_COMMIT}\`](https://github.com/SagerNet/sing-box-for-android/commit/${CLIENT_COMMIT}) (来自 \`sing-box/testing/clients/android\`)"
+            echo "- **集成自定义特性**:"
+            echo "  - Gateway 局域网混合代理网关 (0.0.0.0:8899)"
+            echo "  - 全自动节点解析与单一 PROXY 代理组集成"
+            echo "  - 4 大 YAML 规则集引擎与零信任分流白名单"
+            echo "  - 专属签名固化 (支持手机直接覆盖安装)"
+            echo "  - 全套 tools 维护与嗅探诊断工具链"
+            echo ""
+            echo "---"
+            echo "### 📦 下载与安装说明"
+            echo "- **手机安装使用**：请在下方直接下载对应的 \`.apk\` 文件安装（现代主流手机请优先选择 \`arm64-v8a\` 或 \`universal\`）。"
+            echo "- **本地开发同步**：如需在电脑本地进行开发调试，下方附带预编译的 \`libbox.aar\`，本地运行 \`update-sing-box-core.ps1\` 可自动直接拉取。"
+          } > /tmp/release_notes.md
 
           if gh release view "${TARGET_VER}" --repo "${{ github.repository }}" >/dev/null 2>&1; then
             echo "Release ${TARGET_VER} 已存在，正在覆盖上传资产..."
             gh release upload "${TARGET_VER}" dist/* --repo "${{ github.repository }}" --clobber
-            gh release edit "${TARGET_VER}" --repo "${{ github.repository }}" --title "${RELEASE_TITLE}" --notes "${RELEASE_NOTES}"
+            gh release edit "${TARGET_VER}" --repo "${{ github.repository }}" --title "${RELEASE_TITLE}" --notes-file /tmp/release_notes.md
           else
             echo "正在创建全新的统一 Release: ${TARGET_VER} ..."
             gh release create "${TARGET_VER}" dist/* \
               --repo "${{ github.repository }}" \
               --title "${RELEASE_TITLE}" \
-              --notes "${RELEASE_NOTES}"
+              --notes-file /tmp/release_notes.md
           fi
 
       # -------------------------------------------------------------
