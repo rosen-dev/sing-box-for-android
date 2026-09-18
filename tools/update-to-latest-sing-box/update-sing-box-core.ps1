@@ -1,4 +1,4 @@
-﻿param(
+param(
     [switch]$Force
 )
 
@@ -8,7 +8,7 @@ Set-Location $ProjectRoot
 $DestDir = Join-Path $ProjectRoot "app\libs"
 $DestFile = Join-Path $DestDir "libbox.aar"
 $VersionFile = Join-Path $DestDir "core-version.txt"
-$DownloadUrl = "https://github.com/rosen-dev/sing-box-for-android/releases/download/core-latest/libbox.aar"
+$DownloadUrl = "https://github.com/rosen-dev/sing-box-for-android/releases/latest/download/libbox.aar"
 
 Write-Host "================================================================" -ForegroundColor Cyan
 Write-Host "    Sing-box Go 核心库 (libbox.aar) 自动化同步工具             " -ForegroundColor Cyan
