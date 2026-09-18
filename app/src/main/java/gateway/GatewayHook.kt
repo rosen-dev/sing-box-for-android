@@ -6,14 +6,14 @@ import org.json.JSONObject
 
 object GatewayHook {
 
-    fun transformConfig(context: Context, rawJson: String): String {
+    fun transformConfig(context: Context, rawJson: String, remoteUrl: String? = null): String {
         return try {
             RuleSetManager.ensureRuleSetsExtracted(context)
 
             val original = JSONObject(rawJson)
-            Log.i(GatewayConstants.TAG, "[GatewayHook] 拦截到配置生成请求，开始执行旁路由与 5 层规则重构...")
+            Log.i(GatewayConstants.TAG, "[GatewayHook] 拦截到配置生成请求，开始执行旁路由与 5 层规则重构... (remoteUrl: $remoteUrl)")
 
-            val transformed = ConfigGenerator.generate(context, original)
+            val transformed = ConfigGenerator.generate(context, original, remoteUrl)
             Log.i(GatewayConstants.TAG, "[GatewayHook] 配置重构成功！")
             transformed
         } catch (e: Throwable) {
