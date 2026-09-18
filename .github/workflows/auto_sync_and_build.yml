@@ -22,6 +22,7 @@ on:
 
 permissions:
   contents: write
+  issues: write
 
 jobs:
   build-and-release:
@@ -30,7 +31,7 @@ jobs:
 
     steps:
       # -------------------------------------------------------------
-      # 1. 检出当前项目代码 (包含完整 Git 历史供合并)
+      # 1. 检出当前项目代码 (包含完整 Git 历史供变基)
       # -------------------------------------------------------------
       - name: Checkout Repository
         uses: actions/checkout@v4
@@ -62,17 +63,24 @@ jobs:
           fi
           echo "target_version=$TAG" >> $GITHUB_OUTPUT
 
-          # 2. 解析目标客户端 Commit (来自 sing-box testing/clients/android 子模块)
+          # 2. 解析目标客户端 Commit (优先从官方目标 Tag 提取，若无则回退至 testing 分支)
           if [ -n "${{ github.event.inputs.target_commit }}" ]; then
             CLIENT_COMMIT="${{ github.event.inputs.target_commit }}"
             echo "使用手动指定的客户端 Commit: $CLIENT_COMMIT"
           else
-            echo "正在查询 https://github.com/SagerNet/sing-box/tree/testing/clients/android 指向的 Commit..."
-            CLIENT_COMMIT=$(curl -sL -H "Authorization: Bearer $GH_TOKEN" https://api.github.com/repos/SagerNet/sing-box/contents/clients/android?ref=testing | jq -r .sha)
+            echo "正在尝试从官方 Release Tag (${TAG}) 查询对应的客户端 Commit..."
+            CLIENT_COMMIT=$(curl -sL -H "Authorization: Bearer $GH_TOKEN" "https://api.github.com/repos/SagerNet/sing-box/contents/clients/android?ref=${TAG}" | jq -r .sha 2>/dev/null || true)
+            
+            if [ -z "$CLIENT_COMMIT" ] || [ "$CLIENT_COMMIT" = "null" ]; then
+              echo "官方 Release Tag (${TAG}) 未直接绑定客户端 Commit，回退至 testing 分支查询..."
+              CLIENT_COMMIT=$(curl -sL -H "Authorization: Bearer $GH_TOKEN" "https://api.github.com/repos/SagerNet/sing-box/contents/clients/android?ref=testing" | jq -r .sha)
+            else
+              echo "成功从官方 Release Tag (${TAG}) 解析到绑定的客户端 Commit: $CLIENT_COMMIT"
+            fi
           fi
 
           if [ -z "$CLIENT_COMMIT" ] || [ "$CLIENT_COMMIT" = "null" ]; then
-            echo "错误: 无法解析官方 testing/clients/android 对应的 Commit Hash"
+            echo "错误: 无法解析官方客户端对应的 Commit Hash"
             exit 1
           fi
           echo "目标官方客户端 Commit: $CLIENT_COMMIT"
@@ -85,7 +93,7 @@ jobs:
             RELEASE_EXISTS="true"
           fi
 
-          # 4. 判断客户端 Commit 是否已经被当前分支合并
+          # 4. 判断客户端 Commit 是否已经被当前分支变基合并
           git remote add upstream https://github.com/SagerNet/sing-box-for-android.git 2>/dev/null || true
           git fetch upstream "$CLIENT_COMMIT" --quiet || {
             echo "获取指定 Commit 失败，尝试拉取 upstream main 分支..."
@@ -97,7 +105,7 @@ jobs:
             echo "客户端目标 Commit ($CLIENT_COMMIT) 已经合并在当前分支中。"
             CLIENT_ALREADY_MERGED="true"
           else
-            echo "检测到客户端有新提交待合并: $CLIENT_COMMIT"
+            echo "检测到客户端有新提交待变基: $CLIENT_COMMIT"
           fi
           echo "client_already_merged=$CLIENT_ALREADY_MERGED" >> $GITHUB_OUTPUT
 
@@ -110,7 +118,7 @@ jobs:
             echo "Release $TAG 尚未发布，执行完整编译流程！"
             echo "should_run=true" >> $GITHUB_OUTPUT
           elif [ "$CLIENT_ALREADY_MERGED" != "true" ]; then
-            echo "客户端有更新待合并，执行完整编译流程！"
+            echo "客户端有更新待变基，执行完整编译流程！"
             echo "should_run=true" >> $GITHUB_OUTPUT
           else
             echo "核心与客户端均已处于最新状态，无需重复编译与打包。"
@@ -118,7 +126,176 @@ jobs:
           fi
 
       # -------------------------------------------------------------
-      # 3. 配置 Go 1.24、Java 17、NDK r28 环境
+      # 3. 基于官方客户端最新版本执行 Git Rebase (Fail-Fast: 快速失败与冲突熔断)
+      # -------------------------------------------------------------
+      - name: Rebase Custom Features on Upstream Client
+        id: rebase-client
+        if: steps.resolve-upstream.outputs.should_run == 'true'
+        run: |
+          CLIENT_COMMIT="${{ steps.resolve-upstream.outputs.client_commit }}"
+          CURRENT_BRANCH="${{ github.ref_name || 'feature/gateway' }}"
+          
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git checkout -B "$CURRENT_BRANCH"
+
+          if ! git merge-base --is-ancestor "$CLIENT_COMMIT" HEAD 2>/dev/null; then
+            echo "正在将本地自定义特性 Rebase 变基到官方客户端提交: $CLIENT_COMMIT ..."
+            if ! git rebase "$CLIENT_COMMIT"; then
+              echo "::error::[Rebase 冲突] 变基过程中检测到官方代码与本地自定义特性发生冲突！"
+              
+              # 获取发生冲突的具体文件列表
+              CONFLICT_FILES=$(git diff --name-only --diff-filter=U)
+              echo "冲突文件清单:"
+              echo "$CONFLICT_FILES"
+              
+              # 保存冲突详情供警报与邮件通知步骤使用
+              mkdir -p /tmp/sync_alert
+              echo "$CLIENT_COMMIT" > /tmp/sync_alert/commit.txt
+              echo "$CONFLICT_FILES" > /tmp/sync_alert/conflict_files.txt
+              
+              # 彻底回退放弃未完成的 Rebase，保持工作区纯净
+              git rebase --abort
+              
+              echo "已取消未完成的 Rebase，流水线立即熔断终止！"
+              exit 1
+            fi
+            echo "Git Rebase 成功！所有自定义功能已完整且线性地叠加于官方最新版本之上。"
+          else
+            echo "当前分支已基于目标官方提交，无需重复 Rebase。"
+          fi
+
+      # -------------------------------------------------------------
+      # 3.1 冲突告警与邮件通知拦截器 (仅在 Rebase 冲突时触发，全流程熔断)
+      # -------------------------------------------------------------
+      - name: Send Conflict Alert Email & Notification
+        if: failure() && steps.rebase-client.outcome == 'failure'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          MAIL_PASS: ${{ secrets.MAIL_PASSWORD }}
+          MAIL_USER: ${{ secrets.MAIL_USERNAME || 'rosen.for.dev@gmail.com' }}
+          TARGET_EMAIL: 'rosen.for.dev@gmail.com'
+          CLIENT_COMMIT: ${{ steps.resolve-upstream.outputs.client_commit }}
+          TARGET_VER: ${{ steps.resolve-upstream.outputs.target_version }}
+        run: |
+          echo "=== 正在向 rosen.for.dev@gmail.com 发送代码冲突告警通知 ==="
+          
+          CONFLICT_FILES="未知"
+          if [ -f /tmp/sync_alert/conflict_files.txt ]; then
+            CONFLICT_FILES=$(cat /tmp/sync_alert/conflict_files.txt)
+          fi
+
+          SHORT_COMMIT=$(echo "$CLIENT_COMMIT" | cut -c1-7)
+
+          # 1. 生成详细告警报告
+          cat <<EOF > /tmp/conflict_alert.md
+          ### 🚨 [代码变基冲突告警] 官方上游更新与本地特性 Rebase 冲突
+
+          GitHub Actions 在将本地自定义特性变基（Rebase）到官方最新提交时发生冲突，流水线已**完全熔断终止**（未编译、未打包、未发布）。
+
+          - **目标官方核心版本**: \`${TARGET_VER}\`
+          - **目标官方客户端 Commit**: [\`${SHORT_COMMIT}\`](https://github.com/SagerNet/sing-box-for-android/commit/${CLIENT_COMMIT})
+          - **工作流运行记录**: [点击查看 Actions 详情](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})
+          - **冲突文件列表**:
+          \`\`\`
+          ${CONFLICT_FILES}
+          \`\`\`
+
+          ---
+          ### 🛠️ 人工本地排查与解决建议
+
+          请在本地终端按以下命令排查并手动解决冲突：
+          \`\`\`bash
+          # 1. 拉取官方上游最新代码
+          git fetch upstream
+          # 2. 手动执行变基测试
+          git rebase ${CLIENT_COMMIT}
+          # 3. 解决各冲突文件中的冲突标记并验证
+          # 4. 完成变基并强推到远端：
+          git rebase --continue
+          git push --force-with-lease origin feature/gateway
+          \`\`\`
+          EOF
+
+          # 2. 通道一：若配置了 MAIL_PASSWORD，优先通过 SMTP 直投邮件到 rosen.for.dev@gmail.com
+          python3 - <<'PYEOF'
+          import os, smtplib
+          from email.mime.text import MIMEText
+          from email.mime.multipart import MIMEMultipart
+
+          target_email = os.environ.get('TARGET_EMAIL', 'rosen.for.dev@gmail.com')
+          mail_user = os.environ.get('MAIL_USER', 'rosen.for.dev@gmail.com')
+          mail_pass = os.environ.get('MAIL_PASS')
+
+          try:
+              with open('/tmp/conflict_alert.md', 'r', encoding='utf-8') as f:
+                  content = f.read()
+          except Exception:
+              content = "代码 Rebase 发生冲突，请查看 GitHub Actions 日志。"
+
+          if mail_pass:
+              try:
+                  msg = MIMEMultipart()
+                  msg['From'] = mail_user
+                  msg['To'] = target_email
+                  msg['Subject'] = f"🚨 [Sing-Box Actions] Rebase 冲突警告：上游代码需要人工介入 ({os.environ.get('TARGET_VER')})"
+                  msg.attach(MIMEText(content, 'plain', 'utf-8'))
+                  server = smtplib.SMTP_SSL('smtp.gmail.com', 465, timeout=15)
+                  server.login(mail_user, mail_pass)
+                  server.send_message(msg)
+                  server.quit()
+                  print(f"[SMTP 成功] 邮件已直投至 {target_email}")
+              except Exception as e:
+                  print(f"[SMTP 失败] 无法直投邮件 ({e})，将通过 GitHub 官方渠道推送。")
+          else:
+              print("[提示] 未配置 secrets.MAIL_PASSWORD，将通过 GitHub Issue 机制触发官方必达邮件。")
+          PYEOF
+
+          # 3. 通道二：通过 GitHub 官方 Issue 机制派发给仓库所有者 (100% 触发 GitHub 绑定邮箱邮件通知)
+          ALERT_BODY=$(cat /tmp/conflict_alert.md)
+          gh issue create \
+            --repo "${{ github.repository }}" \
+            --title "🚨 [代码 Rebase 冲突] 上游更新与本地特性冲突需人工介入 (${TARGET_VER} - ${SHORT_COMMIT})" \
+            --body "$ALERT_BODY" \
+            --assignee "@me" || true
+
+          echo "告警通知派发完成，流程已终止。"
+
+      # -------------------------------------------------------------
+      # 3.2 编译前断言安全门禁 (确保自定义功能 100% 存在，否则熔断报错)
+      # -------------------------------------------------------------
+      - name: Verify Custom Features Integrity
+        if: steps.resolve-upstream.outputs.should_run == 'true'
+        run: |
+          echo "=== 正在启动编译前自定义功能完整性断言安全门禁 ==="
+          
+          # 断言 1: BoxService.kt 必须注入 GatewayHook
+          if ! grep -q "gateway.GatewayHook.transformConfig" app/src/main/java/io/nekohasekai/sfa/bg/BoxService.kt; then
+            echo "::error::[断言失败] BoxService.kt 未包含 GatewayHook.transformConfig 注入点！"
+            exit 1
+          fi
+          echo "[PASS] BoxService.kt GatewayHook 注入正常"
+
+          # 断言 2: ConfigGenerator.kt 必须包含动态订阅白名单逻辑
+          if ! grep -q "extractSubscriptionHost" app/src/main/java/gateway/ConfigGenerator.kt; then
+            echo "::error::[断言失败] ConfigGenerator.kt 缺失动态订阅白名单逻辑！"
+            exit 1
+          fi
+          echo "[PASS] ConfigGenerator.kt 动态订阅白名单就绪"
+
+          # 断言 3: 四大 YAML 规则文件必须存在且非空
+          for rule in RuleSet_Priority_Whitelist RuleSet_Whitelist RuleSet_Direct RuleSet_Blacklist; do
+            if [ ! -s "app/src/main/assets/gateway_rules/${rule}.yaml" ]; then
+              echo "::error::[断言失败] 规则文件 ${rule}.yaml 不存在或内容为空！"
+              exit 1
+            fi
+          done
+          echo "[PASS] 4 大 YAML 规则文件完整无损"
+
+          echo "=== 所有核心特性完整性校验 100% 通过，准予执行 APK 编译！==="
+
+      # -------------------------------------------------------------
+      # 4. 配置 Go 1.24、Java 17、NDK r28 环境
       # -------------------------------------------------------------
       - name: Set up Go
         if: steps.resolve-upstream.outputs.should_run == 'true'
@@ -143,7 +320,7 @@ jobs:
           add-to-path: true
 
       # -------------------------------------------------------------
-      # 4. 编译官方 sing-box 核心 (生成 libbox.aar)
+      # 5. 编译官方 sing-box 核心 (生成 libbox.aar)
       # -------------------------------------------------------------
       - name: Build libbox.aar from Official Source
         if: steps.resolve-upstream.outputs.should_run == 'true'
@@ -168,43 +345,6 @@ jobs:
           mkdir -p $GITHUB_WORKSPACE/dist
           cp libbox.aar $GITHUB_WORKSPACE/dist/libbox.aar
           cd $GITHUB_WORKSPACE
-
-      # -------------------------------------------------------------
-      # 5. 合并官方客户端代码 (严格保护所有自定义功能)
-      # -------------------------------------------------------------
-      - name: Merge Upstream Client Code
-        if: steps.resolve-upstream.outputs.should_run == 'true'
-        run: |
-          CLIENT_COMMIT="${{ steps.resolve-upstream.outputs.client_commit }}"
-          
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-
-          if ! git merge-base --is-ancestor "$CLIENT_COMMIT" HEAD 2>/dev/null; then
-            echo "正在合入官方客户端 commit: $CLIENT_COMMIT ..."
-            git merge "$CLIENT_COMMIT" -m "sync: merge official client commit $CLIENT_COMMIT from sing-box testing/clients" || {
-              echo "检测到合并冲突，正在执行自愈策略以绝对保留全部自定义功能..."
-              
-              # 1. 绝对优先保留本地自定义的四大资产目录
-              git checkout --ours app/src/main/assets/gateway_rules/ 2>/dev/null || true
-              git checkout --ours app/src/main/java/gateway/ 2>/dev/null || true
-              git checkout --ours tools/ 2>/dev/null || true
-              git checkout --ours app/release.keystore 2>/dev/null || true
-              git checkout --ours .github/ 2>/dev/null || true
-              
-              # 2. 检查并自愈 BoxService.kt 中的 GatewayHook 注入点
-              if ! grep -q "gateway.GatewayHook.transformConfig" app/src/main/java/io/nekohasekai/sfa/bg/BoxService.kt; then
-                echo "正在自愈修复 BoxService.kt 中的 GatewayHook 注入点..."
-                sed -i 's/val content = File(profile.typed.path).readText()/val content = gateway.GatewayHook.transformConfig(service, File(profile.typed.path).readText(), profile.typed.remoteURL)/g' app/src/main/java/io/nekohasekai/sfa/bg/BoxService.kt
-              fi
-              
-              git add .
-              git commit -m "sync: resolve merge conflicts and preserve gateway modules"
-            }
-            echo "客户端代码合并成功！"
-          else
-            echo "当前分支已包含目标客户端 commit，无需重复 merge。"
-          fi
 
       # -------------------------------------------------------------
       # 6. 配置 Gradle 缓存并编译 Release APK
@@ -233,6 +373,7 @@ jobs:
           # 收集所有架构的 Release APK 到 dist 目录
           mkdir -p dist
           find app/build/outputs/apk/other/release/ -name "*.apk" -exec cp {} dist/ \;
+          
           echo "打包完成，dist/ 待发布资产清单:"
           ls -lh dist/
 
@@ -284,9 +425,9 @@ jobs:
           fi
 
       # -------------------------------------------------------------
-      # 8. 推送合并官方客户端后的最新代码 (仅当合并了新提交时)
+      # 8. 推送变基后的最新代码到远端分支 (仅当 Rebase 了新提交时)
       # -------------------------------------------------------------
-      - name: Push Merged Client Code to GitHub
+      - name: Push Rebased Code to GitHub
         if: steps.resolve-upstream.outputs.should_run == 'true' && steps.resolve-upstream.outputs.client_already_merged != 'true'
         run: |
           CURRENT_BRANCH=$(git branch --show-current)
@@ -294,5 +435,5 @@ jobs:
             CURRENT_BRANCH="${{ github.ref_name || 'feature/gateway' }}"
           fi
           
-          echo "正在推送合并客户端更新后的分支到 origin ${CURRENT_BRANCH} ..."
-          git push origin HEAD:${CURRENT_BRANCH}
+          echo "正在推送变基后的分支到 origin ${CURRENT_BRANCH} ..."
+          git push --force-with-lease origin HEAD:${CURRENT_BRANCH}
