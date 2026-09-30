@@ -22,7 +22,7 @@ sniffer:
   parse-pure-ip: true
   sniff:
     HTTP:
-      ports: [80, 8080-8880]
+      ports: [80, "8080-8880"]
       override-destination: true
     TLS:
       ports: [443, 8443]
@@ -72,7 +72,6 @@ proxies:
     server: 127.0.0.1
     port: 7890
     udp: true
-    skip-cert-verify: true
 
 # --- 策略分流组 (PROXY 选择器) ---
 proxy-groups:
