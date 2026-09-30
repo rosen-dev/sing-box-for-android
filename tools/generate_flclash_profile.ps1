@@ -1,6 +1,7 @@
 $rulesDir = Join-Path $PSScriptRoot "..\app\src\main\assets\gateway_rules"
 $baseFile = Join-Path $PSScriptRoot "flclash_base.yaml"
-$outputFile = Join-Path $PSScriptRoot "..\config\flclash-gateway-profile.yaml"
+$desktopDir = [System.Environment]::GetFolderPath([System.Environment+SpecialFolder]::Desktop)
+$outputFile = Join-Path $desktopDir "flclash-gateway-profile.yaml"
 
 function Convert-YamlFileToRules {
     param(
@@ -71,18 +72,8 @@ $footer = @(
 
 [void]$sb.AppendLine($footer)
 
-$desktopDir = [System.Environment]::GetFolderPath([System.Environment+SpecialFolder]::Desktop)
-$desktopOutputFile = Join-Path $desktopDir "flclash-gateway-profile.yaml"
-
-$configDir = [System.IO.Path]::GetDirectoryName($outputFile)
-if (-not (Test-Path $configDir)) {
-    New-Item -ItemType Directory -Path $configDir -Force | Out-Null
-}
-
 $utf8NoBom = [System.Text.UTF8Encoding]::new($false)
 [System.IO.File]::WriteAllText($outputFile, $sb.ToString(), $utf8NoBom)
-[System.IO.File]::WriteAllText($desktopOutputFile, $sb.ToString(), $utf8NoBom)
 
-Write-Host "Generated Flclash configuration successfully:"
-Write-Host "  -> Project: $outputFile"
-Write-Host "  -> Desktop: $desktopOutputFile"
+Write-Host "Generated Flclash configuration successfully on Desktop:"
+Write-Host "  -> $outputFile"
