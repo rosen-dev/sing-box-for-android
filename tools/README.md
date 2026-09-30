@@ -1,4 +1,4 @@
-﻿# Sing-box for Android 自动化维护与构建工具箱
+# Sing-box for Android 自动化维护与构建工具箱
 
 本目录收纳了维护本项目自定义分流网关（Gateway）、白名单智能捕获、编译前合规校验与跟进官方最新发布版所需的全套自动化工具。
 
@@ -17,6 +17,7 @@
 | **`e2e-routing-test\test-e2e-gateway-routing.ps1`** | **【真机实测】** | 交互式索要订阅链接，自动打通真机端口映射，执行 5 层分流路由全项实测，带故障自动诊断与根因报告 | `.\tools\e2e-routing-test\test-e2e-gateway-routing.ps1` |
 | **`update-to-latest-sing-box\update-sing-box-core.ps1`** | **【跟进官方更新】** | 官方 Go 核心发新版时，一键从 GitHub Releases 下载最新 `libbox.aar`（未变秒级跳过，并自动联动规范体检） | `.\tools\update-to-latest-sing-box\update-sing-box-core.ps1` |
 | **`update-to-latest-sing-box\rebase-to-latest-clients-tag.ps1`** | **【跟进官方更新】** | 官方 Android 客户端发新版时，自动将本仓库变基至官方最新主线（自带版本备份与安全回滚） | `.\tools\update-to-latest-sing-box\rebase-to-latest-clients-tag.ps1` |
+| **`generate_flclash_profile.ps1`** | **【配置导出 · Flclash】** | 基于 4 大规则集与 5 层路由架构，自动转换生成 Flclash / Clash Meta Android 端自包含配置文件 | `.\tools\generate_flclash_profile.ps1` |
 
 ---
 

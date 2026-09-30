@@ -1,0 +1,717 @@
+# ==============================================================================
+# Flclash for Android 自定义配置文件
+# 适配架构：基于 Sing-box for Android 本地网关 5 层分流架构
+# 核心节点：链接至本机 oixcloud 定制版 Flclash (127.0.0.1:7890)
+# ==============================================================================
+
+# --- 基础运行参数 ---
+# 入站混合监听端口设为 8899 (对齐本项目的旁路由网关端口 8899，避免与 7890 冲突)
+mixed-port: 8899
+allow-lan: false
+mode: rule
+log-level: info
+ipv6: false
+external-controller: 127.0.0.1:9090
+tcp-concurrent: true
+find-process-mode: strict
+
+# --- 流量嗅探 (Sniffer: 对应 Sing-box "action": "sniff") ---
+sniffer:
+  enable: true
+  force-dns-mapping: true
+  parse-pure-ip: true
+  sniff:
+    HTTP:
+      ports: [80, 8080-8880]
+      override-destination: true
+    TLS:
+      ports: [443, 8443]
+    QUIC:
+      ports: [443, 8443]
+
+# --- TUN 虚拟网卡模式 (Android VPN 专用) ---
+tun:
+  enable: true
+  stack: mixed
+  dns-hijack:
+    - "any:53"
+    - "tcp://any:53"
+  auto-route: true
+  auto-detect-interface: true
+
+# --- DNS 引擎 (对应 Sing-box fastDNS 规范: 国内极速 + 远端防污染) ---
+dns:
+  enable: true
+  listen: 0.0.0.0:1053
+  ipv6: false
+  enhanced-mode: fake-ip
+  fake-ip-range: 198.18.0.1/16
+  fake-ip-filter:
+    - "*.lan"
+    - "*.local"
+    - "localhost.ptlogin2.qq.com"
+  default-nameserver:
+    - 223.5.5.5
+    - 119.29.29.29
+  nameserver:
+    - 223.5.5.5
+    - 119.29.29.29
+  fallback:
+    - https://1.1.1.1/dns-query
+    - https://8.8.8.8/dns-query
+  fallback-filter:
+    geoip: true
+    geoip-code: CN
+    ipcidr:
+      - 240.0.0.0/4
+
+# --- 代理节点列表 (唯一物理节点: 转发至本机 oixcloud 定制版) ---
+proxies:
+  - name: "oixcloud-local-7890"
+    type: socks5
+    server: 127.0.0.1
+    port: 7890
+    udp: true
+    skip-cert-verify: true
+
+# --- 策略分流组 (PROXY 选择器) ---
+proxy-groups:
+  - name: PROXY
+    type: select
+    proxies:
+      - "oixcloud-local-7890"
+      - DIRECT
+
+# --- 5 层分流路由规则 ---
+rules:
+  # ==========================================================
+  # Layer 0: 基础直通与 DNS/局域网保障
+  # ==========================================================
+  # 0.1 远端 DNS 服务器 IP 直通走 PROXY
+  - IP-CIDR,1.1.1.1/32,PROXY,no-resolve
+  - IP-CIDR,1.0.0.1/32,PROXY,no-resolve
+  - IP-CIDR,8.8.8.8/32,PROXY,no-resolve
+  - IP-CIDR,8.8.4.4/32,PROXY,no-resolve
+
+  # 0.2 国内直连 DNS 服务器 IP 走 DIRECT
+  - IP-CIDR,223.5.5.5/32,DIRECT,no-resolve
+  - IP-CIDR,223.6.6.6/32,DIRECT,no-resolve
+  - IP-CIDR,119.29.29.29/32,DIRECT,no-resolve
+  - IP-CIDR,180.184.1.1/32,DIRECT,no-resolve
+
+  # 0.3 原生局域网与私有 IP 直连
+  - GEOIP,private,DIRECT,no-resolve
+  - IP-CIDR,127.0.0.0/8,DIRECT,no-resolve
+  - IP-CIDR,10.0.0.0/8,DIRECT,no-resolve
+  - IP-CIDR,172.16.0.0/12,DIRECT,no-resolve
+  - IP-CIDR,192.168.0.0/16,DIRECT,no-resolve
+
+  # 0.4 特殊直连网段 (Apple 17.0.0.0/8、运营商 CGNAT 100.64.0.0/10)
+  - IP-CIDR,100.64.0.0/10,DIRECT,no-resolve
+  - IP-CIDR,17.0.0.0/8,DIRECT,no-resolve
+
+  # ==========================================================
+  # Layer 1: 特定设备条件拦截规则 (Clash Meta 逻辑 AND 规则)
+  # ==========================================================
+  - AND,((SRC-IP-CIDR,192.168.10.50/32),(DOMAIN-SUFFIX,googlevideo.com)),REJECT
+
+  # ==========================================================
+  # Layer 2: Priority Whitelist (Source: assets/gateway_rules/RuleSet_Priority_Whitelist.yaml)
+  # ==========================================================
+  # ==========================================================
+  # RuleSet for Priority Whitelist (高优先级白名单)
+  # ==========================================================
+  # 逻辑：此规则集先于 Blacklist 匹配。
+  # 用于放行那些被 Blacklist 广谱拦截但仍需使用的特定子域名。
+  # 例如：Blacklist 拦截了 youtube.com，此处放行 accounts.youtube.com 以确保登录正常。
+  - DOMAIN-SUFFIX,accounts.youtube.com,PROXY
+  - DOMAIN-KEYWORD,accounts.youtube.com.,PROXY  # 确保所有国家的accounts.youtube.com域名都可以访问
+  # Developer Services (开发者服务)
+  - DOMAIN-SUFFIX,open-vsx.org,PROXY  # Open VSX 插件市场 (Antigravity IDE 默认插件源)
+  - DOMAIN-SUFFIX,visualstudio.com,PROXY  # VS Code Extension Marketplace 插件市场
+  - DOMAIN-SUFFIX,vsassets.io,PROXY  # VS Code 插件静态资源与 CDN
+  - DOMAIN-SUFFIX,vscode-assets.net,PROXY  # VS Code 插件二进制包下载 CDN
+  - DOMAIN-SUFFIX,vscode-cdn.net,PROXY
+  - DOMAIN-SUFFIX,npmjs.org,PROXY
+  - DOMAIN-SUFFIX,nodejs.org,PROXY
+  - DOMAIN-SUFFIX,golang.org,PROXY  # Go 语言官方与模块代理 (proxy.golang.org / sum.golang.org)
+  - DOMAIN-SUFFIX,go.dev,PROXY  # Go 语言官网与包索引 (pkg.go.dev)
+  - DOMAIN-SUFFIX,github.com,PROXY
+  - DOMAIN-SUFFIX,githubusercontent.com,PROXY
+  - DOMAIN-SUFFIX,githubassets.com,PROXY
+  - DOMAIN-SUFFIX,ctfassets.net,PROXY
+  - DOMAIN-SUFFIX,gradle.org,PROXY
+  - DOMAIN-SUFFIX,maven.org,PROXY
+  - DOMAIN-SUFFIX,apache.org,PROXY
+  - DOMAIN-SUFFIX,maven.google.com,PROXY
+  - DOMAIN-SUFFIX,jitpack.io,PROXY
+  - DOMAIN-SUFFIX,yarnpkg.com,PROXY
+  - DOMAIN-SUFFIX,expo.dev,PROXY
+  - DOMAIN-SUFFIX,exp.host,PROXY
+  - DOMAIN,expo.fyi,PROXY
+  - DOMAIN-SUFFIX,eascdn.net,PROXY  # Expo EAS Build/Update CDN（构建产物与OTA更新）
+  - DOMAIN-SUFFIX,supabase.com,PROXY
+  - DOMAIN-SUFFIX,supabase.co,PROXY
+  - DOMAIN-SUFFIX,googleapis.com,PROXY  # 含 safebrowsing.googleapis.com（已覆盖）
+  - DOMAIN-SUFFIX,gstatic.com,PROXY
+  - DOMAIN-SUFFIX,dl.google.com,PROXY  # Google 下载服务（Android SDK、Chrome 等）
+  - DOMAIN-SUFFIX,goog.com,PROXY  # Google 短域名（如 antigravity-unleash.goog）
+  - DOMAIN-SUFFIX,npmjs.com,PROXY  # npm CLI 元数据请求（registry 已由 npmjs.org 覆盖）
+  - DOMAIN-SUFFIX,cloudfront.net,PROXY  # AWS CloudFront CDN（Expo 资源、部分 npm 包二进制文件）
+  - DOMAIN-SUFFIX,android.com,PROXY  # Android 开发者文档 & Gradle 插件解析
+  - DOMAIN-SUFFIX,unpkg.com,PROXY  # Expo Web 模式部分依赖的 CDN
+  - DOMAIN-SUFFIX,jsdelivr.net,PROXY  # JavaScript 包 CDN（Expo Web 依赖）
+  # Certificate Verification (证书 OCSP / CRL 验证)
+  - DOMAIN-SUFFIX,lencr.org,PROXY
+  - DOMAIN-SUFFIX,identrust.com,PROXY
+  - DOMAIN-SUFFIX,digicert.com,PROXY
+  - DOMAIN-SUFFIX,sectigo.com,PROXY
+  - DOMAIN-SUFFIX,globalsign.com,PROXY
+  # Kotlin Multiplatform & JetBrains Build Services
+  - DOMAIN-SUFFIX,jetbrains.com,PROXY
+  - DOMAIN-SUFFIX,jetbrains.space,PROXY  # Compose Multiplatform / Skiko 构件仓库
+  - DOMAIN-SUFFIX,jetbrains.team,PROXY  # JetBrains 扩展构件仓库
+  - DOMAIN-SUFFIX,kotlinlang.org,PROXY
+  - DOMAIN-SUFFIX,kotl.in,PROXY  # Kotlin 官方短链重定向
+  - DOMAIN-SUFFIX,objects.githubusercontent.com,PROXY  # GitHub Binary Releases CDN (Node/Yarn)
+  - DOMAIN-SUFFIX,googlesource.com,PROXY
+  - DOMAIN-SUFFIX,gvt1.com,PROXY
+  - DOMAIN-SUFFIX,foojay.io,PROXY  # Gradle Java Toolchain API
+  - DOMAIN-SUFFIX,adoptium.net,PROXY  # OpenJDK (Temurin) 二进制包下载 CDN
+  - DOMAIN-SUFFIX,cocoapods.org,PROXY  # iOS CocoaPods 依赖仓库
+  - DOMAIN-SUFFIX,gradle.com,PROXY  # Gradle Enterprise / Develocity
+
+  # ==========================================================
+  # Layer 3: Blacklist (Source: assets/gateway_rules/RuleSet_Blacklist.yaml)
+  # ==========================================================
+  # ==========================================================
+  # RuleSet for REJECT Connections (黑名单规则)
+  # ==========================================================
+  # Google Play Services (部分服务，其余移至Timed)
+  - DOMAIN-SUFFIX,play.googleapis.com,REJECT
+  - DOMAIN-SUFFIX,play-fe.googleapis.com,REJECT
+  # Google Play (谷歌商店)
+  #  - DOMAIN-SUFFIX,play.google.com
+  # Google Search (谷歌搜索)
+  - DOMAIN,www.google.com,REJECT
+  #  不屏蔽AI了- DOMAIN-SUFFIX,gemini.google.com
+  #  不屏蔽AI了- DOMAIN-SUFFIX,aistudio.google.com
+  #  不屏蔽AI了- DOMAIN-SUFFIX,grok.com
+  # 屏蔽Gmail、Google drive中的Gemini
+  #  不屏蔽AI了- DOMAIN-KEYWORD,appsgenaiserver-pa
+  # 把Manus 也屏蔽
+  #  不屏蔽AI了- DOMAIN-KEYWORD,manus
+  # YouTube (油管)
+  - DOMAIN-SUFFIX,youtube.com,REJECT
+  - DOMAIN-SUFFIX,m.youtube.com,REJECT
+  - DOMAIN-SUFFIX,s.youtube.com,REJECT
+  - DOMAIN-SUFFIX,i.ytimg.com,REJECT
+  - DOMAIN-SUFFIX,yt3.ggpht.com,REJECT
+  - DOMAIN-SUFFIX,ytimg.com,REJECT
+  - DOMAIN-SUFFIX,youtubei.googleapis.com,REJECT
+  - DOMAIN-SUFFIX,youtube.googleapis.com,REJECT
+  # Bing (必应搜索及相关服务)
+  - DOMAIN-SUFFIX,bing.com,REJECT
+  - DOMAIN-SUFFIX,bing.net,REJECT
+  - DOMAIN-SUFFIX,bingapis.com,REJECT
+  - DOMAIN-SUFFIX,bingagencyawards.com,REJECT
+
+  # ==========================================================
+  # Layer 4: Direct Rules (Source: assets/gateway_rules/RuleSet_Direct.yaml)
+  # ==========================================================
+  # ==========================================================
+  # RuleSet for DIRECT Connections (直连规则 - 纯域名规范)
+  # ==========================================================
+  # Local Domain (本地与局域网域名)
+  - DOMAIN-SUFFIX,local,DIRECT
+  - DOMAIN-SUFFIX,lan,DIRECT
+  - DOMAIN-SUFFIX,home.arpa,DIRECT
+  ############ SpeedTest ############
+  # > Fast
+  - DOMAIN-SUFFIX,fast.com,DIRECT
+  # > Speedtest by Ookla
+  - DOMAIN-KEYWORD,speedtest,DIRECT
+  - DOMAIN-SUFFIX,ooklaserver.net,DIRECT
+  - DOMAIN,speed.dler.io,DIRECT
+  # > Speed Test by Cloudflare
+  - DOMAIN-SUFFIX,speed.cloudflare.com,DIRECT
+  ############ SpeedTest END ############
+  # 私人 DNS 服务 (屏蔽微信和支付宝中短视频)
+  - DOMAIN-SUFFIX,nextdns.io,DIRECT
+  # 小米生态
+  - DOMAIN-SUFFIX,mi.com,DIRECT
+  - DOMAIN-SUFFIX,mi-img.com,DIRECT
+  - DOMAIN-SUFFIX,miui.com,DIRECT
+  - DOMAIN-SUFFIX,xiaomi.com,DIRECT
+  # 商米 (Sunmi)
+  - DOMAIN-SUFFIX,sunmi.com,DIRECT
+  # DeepSeek
+  - DOMAIN-KEYWORD,deepseek,DIRECT
+  - DOMAIN-SUFFIX,deepseek.com,DIRECT
+  - DOMAIN-SUFFIX,deepseek.cn,DIRECT
+  # Tencent Cloud & Payment (腾讯云与支付)
+  - DOMAIN-SUFFIX,tencentcloudapi.com,DIRECT
+  - DOMAIN-SUFFIX,cloudbase.net,DIRECT
+  - DOMAIN-SUFFIX,tcb.qcloud.la,DIRECT
+  - DOMAIN-SUFFIX,myqcloud.com,DIRECT
+  - DOMAIN-SUFFIX,alipay.com,DIRECT
+  - DOMAIN-SUFFIX,tenpay.com,DIRECT
+  - DOMAIN,api.mch.weixin.qq.com,DIRECT
+  # Memfire (国内 Supabase 替代)
+  - DOMAIN-SUFFIX,memfiredb.com,DIRECT
+  - DOMAIN-SUFFIX,memfire.com,DIRECT
+  # Aliyun Maven & npm Mirror / 国内开发者服务
+  - DOMAIN-SUFFIX,aliyun.com,DIRECT
+  - DOMAIN-SUFFIX,aliyuncdn.com,DIRECT
+  - DOMAIN-SUFFIX,gitee.com,DIRECT
+  - DOMAIN-SUFFIX,gitee.io,DIRECT
+  - DOMAIN-SUFFIX,gitcode.com,DIRECT
+  # BoardMix (博思白板 & 华为云存储 & 客服)
+  - DOMAIN-SUFFIX,boardmix.cn,DIRECT
+  - DOMAIN-SUFFIX,boardmix.com,DIRECT
+  - DOMAIN-SUFFIX,bosyun.cn,DIRECT
+  - DOMAIN-SUFFIX,bosyun.net,DIRECT
+  - DOMAIN-SUFFIX,obs.cn-east-3.myhuaweicloud.com,DIRECT
+  - DOMAIN-SUFFIX,qiyukf.com,DIRECT
+
+  # ==========================================================
+  # Layer 5: Whitelist Rules (Source: assets/gateway_rules/RuleSet_Whitelist.yaml)
+  # ==========================================================
+  # ==========================================================
+  # RuleSet for PROXY Connections (白名单规则)
+  # ==========================================================
+  # --- Core Google & Android Services ---
+  # Certificate & Connectivity (证书 & 连通性检查)
+  - DOMAIN-SUFFIX,c.pki.goog,PROXY
+  - DOMAIN-SUFFIX,ocsps.ssl.com,PROXY
+  - DOMAIN-SUFFIX,x1.c.lencr.org,PROXY
+  - DOMAIN-SUFFIX,time.android.com,PROXY
+  - DOMAIN-SUFFIX,connectivitycheck.gstatic.com,PROXY
+  # Google Static Content (谷歌静态资源)
+  - DOMAIN-SUFFIX,fonts.googleapis.com,PROXY
+  - DOMAIN-SUFFIX,fonts.gstatic.com,PROXY
+  - DOMAIN-SUFFIX,mw1.gstatic.com,PROXY
+  - DOMAIN-SUFFIX,ssl.gstatic.com,PROXY
+  - DOMAIN-SUFFIX,encrypted-tbn0.gstatic.com,PROXY
+  - DOMAIN-SUFFIX,gstatic.com,PROXY
+  # Google Cloud & APIs (谷歌云 & API)
+  - DOMAIN-SUFFIX,amazonaws.com,PROXY  # (虽然是Amazon，但常用于Google服务)
+  - DOMAIN-SUFFIX,storage.googleapis.com,PROXY
+  - DOMAIN-SUFFIX,uc.appengine.google.com,PROXY
+  - DOMAIN-SUFFIX,android.clients.google.com,PROXY
+  - DOMAIN-SUFFIX,android.googleapis.com,PROXY
+  - DOMAIN-SUFFIX,apis.google.com,PROXY
+  - DOMAIN-SUFFIX,clients2.google.com,PROXY
+  - DOMAIN-SUFFIX,clients4.google.com,PROXY
+  - DOMAIN-SUFFIX,clients6.google.com,PROXY
+  - DOMAIN-SUFFIX,clientservices.googleapis.com,PROXY
+  - DOMAIN-SUFFIX,content.googleapis.com,PROXY
+  - DOMAIN-SUFFIX,update.googleapis.com,PROXY
+  - DOMAIN-SUFFIX,googleapis.com,PROXY
+  - DOMAIN-SUFFIX,gcs.googleapis.com,PROXY
+  # Google Account & Sync (谷歌账户 & 同步)
+  - DOMAIN-SUFFIX,accounts.google.com,PROXY
+  - DOMAIN-KEYWORD,accounts.google,PROXY  # 确保accounts.google.com.vn 等其他后缀其他国家的accounts.google.com也能访问。
+  - DOMAIN-SUFFIX,accountsettingsmobile-pa.googleapis.com,PROXY
+  - DOMAIN-SUFFIX,accountcapabilities-pa.googleapis.com,PROXY
+  - DOMAIN-SUFFIX,myaccount.google.com,PROXY
+  - DOMAIN-SUFFIX,myphonenumbers-pa.googleapis.com,PROXY
+  - DOMAIN-SUFFIX,passbox-pa.googleapis.com,PROXY
+  - DOMAIN-SUFFIX,cryptauthenrollment.googleapis.com,PROXY
+  - DOMAIN-SUFFIX,authenticator.google.com,PROXY
+  - DOMAIN-SUFFIX,gmscompliance-pa.googleapis.com,PROXY
+  - DOMAIN-SUFFIX,androidplatformbackuprestore-pa.googleapis.com,PROXY
+  - DOMAIN-SUFFIX,appsbackup-pa.googleapis.com,PROXY
+  - DOMAIN-SUFFIX,chromesyncentities-pa.googleapis.com,PROXY
+  - DOMAIN-SUFFIX,chromesyncpasswords-pa.googleapis.com,PROXY
+  # Firebase & Push Notifications (Firebase & 推送服务)
+  - DOMAIN-SUFFIX,fcmconnection.googleapis.com,PROXY
+  - DOMAIN-SUFFIX,mtalk.google.com,PROXY
+  - DOMAIN-SUFFIX,notifications-pa.googleapis.com,PROXY
+  - DOMAIN-SUFFIX,notifications-ueeshp-pa.googleapis.com,PROXY
+  - DOMAIN-SUFFIX,firebase-settings.crashlytics.com,PROXY
+  - DOMAIN-SUFFIX,firebaseinstallations.googleapis.com,PROXY
+  - DOMAIN-SUFFIX,firebaselogging.googleapis.com,PROXY
+  # Misc Google Services (其他谷歌服务)
+  - DOMAIN-SUFFIX,safebrowsing.google.com,PROXY
+  - DOMAIN-SUFFIX,safebrowsing.googleapis.com,PROXY
+  - DOMAIN-SUFFIX,recaptcha.google.com,PROXY
+  - DOMAIN-SUFFIX,recaptcha.net,PROXY
+  - DOMAIN-SUFFIX,scone-pa.googleapis.com,PROXY
+  - DOMAIN-SUFFIX,appsgrowthpromo-pa.clients6.google.com,PROXY
+  - DOMAIN-SUFFIX,content-autofill.googleapis.com,PROXY
+  - DOMAIN-SUFFIX,csp.withgoogle.com,PROXY
+  - DOMAIN-SUFFIX,feedback-pa.clients6.google.com,PROXY
+  - DOMAIN-SUFFIX,feedback-pa.googleapis.com,PROXY
+  - DOMAIN-SUFFIX,ogs.google.com,PROXY
+  - DOMAIN-SUFFIX,ogads-pa.clients6.google.com,PROXY
+  - DOMAIN-SUFFIX,optimizationguide-pa.googleapis.com,PROXY
+  - DOMAIN-SUFFIX,playatoms-pa.googleapis.com,PROXY
+  - DOMAIN-SUFFIX,support.google.com,PROXY
+  - DOMAIN-SUFFIX,waa-pa.clients6.google.com,PROXY
+  - DOMAIN-SUFFIX,googletagmanager.com,PROXY
+  # Google User Content (谷歌用户内容)
+  - DOMAIN-SUFFIX,googleusercontent.com,PROXY
+  - DOMAIN-SUFFIX,lh3.google.com,PROXY
+  - DOMAIN-SUFFIX,lh3.googleusercontent.com,PROXY
+  - DOMAIN-SUFFIX,storage.l.googleusercontent.com,PROXY
+  # Google Video (视频相关)
+  - DOMAIN-SUFFIX,googlevideo.com,PROXY
+  # --- Google Apps ---
+  # Google Drive, Cloud Search (云盘, 云搜索)
+  - DOMAIN-SUFFIX,cloudsearch.googleapis.com,PROXY
+  - DOMAIN-SUFFIX,drive.files.ggpht.com,PROXY
+  - DOMAIN-SUFFIX,ggpht.com,PROXY
+  - DOMAIN-SUFFIX,drivefrontend-pa.clients6.google.com,PROXY
+  - DOMAIN-SUFFIX,drivefrontend-pa.googleapis.com,PROXY
+  - DOMAIN-SUFFIX,subscriptionsmobile-pa.googleapis.com,PROXY
+  - DOMAIN-SUFFIX,drive.google.com,PROXY
+  - DOMAIN-SUFFIX,drive-pa.googleapis.com,PROXY
+  # Google Docs Suite (谷歌文档套件)
+  - DOMAIN-SUFFIX,books.google.com,PROXY
+  - DOMAIN-SUFFIX,docs.google.com,PROXY
+  - DOMAIN-SUFFIX,sheets.google.com,PROXY
+  - DOMAIN-SUFFIX,slides.google.com,PROXY
+  # Gmail, Inbox (邮箱)
+  - DOMAIN-SUFFIX,gmail.com,PROXY
+  - DOMAIN-SUFFIX,inbox.google.com,PROXY
+  - DOMAIN-SUFFIX,mail.google.com,PROXY
+  # Google Subscriptions (订阅管理)
+  - DOMAIN-SUFFIX,subscriptionsfirstparty-pa.googleapis.com,PROXY
+  - DOMAIN-SUFFIX,subscriptionsmanagement-pa.googleapis.com,PROXY
+  # Google Meet, Hangouts (会议, 聊天)
+  - DOMAIN-SUFFIX,addons-pa.googleapis.com,PROXY
+  - DOMAIN-SUFFIX,auditrecording-pa.googleapis.com,PROXY
+  - DOMAIN-SUFFIX,hangouts.google.com,PROXY
+  - DOMAIN-SUFFIX,meet.google.com,PROXY
+  - DOMAIN-SUFFIX,meet.turns.goog,PROXY
+  - DOMAIN-SUFFIX,meetings.googleapis.com,PROXY
+  - DOMAIN-SUFFIX,signaler-pa.clients6.google.com,PROXY
+  - DOMAIN-SUFFIX,signaler-pa.googleapis.com,PROXY
+  - DOMAIN-SUFFIX,voilatile-pa.googleapis.com,PROXY
+  # Google Contacts (联系人)
+  - DOMAIN-SUFFIX,contacts.google.com,PROXY
+  - DOMAIN-SUFFIX,contactsui-pa.googleapis.com,PROXY
+  - DOMAIN-SUFFIX,people-pa.clients6.google.com,PROXY
+  - DOMAIN-SUFFIX,people-pa.googleapis.com,PROXY
+  - DOMAIN-SUFFIX,peoplestack-pa.clients6.google.com,PROXY
+  - DOMAIN-SUFFIX,peoplestack-pa.googleapis.com,PROXY
+  - DOMAIN-SUFFIX,peoplestackwebexperiments-pa.clients6.google.com,PROXY
+  # Google Calendar, Tasks (日历, 任务)
+  - DOMAIN-SUFFIX,calendar.google.com,PROXY
+  - DOMAIN-SUFFIX,calendarpushsubscription-pa.googleapis.com,PROXY
+  - DOMAIN-SUFFIX,calendarsync-pa.googleapis.com,PROXY
+  - DOMAIN-SUFFIX,reminders-pa.googleapis.com,PROXY
+  # Google Photos (相册)
+  - DOMAIN-SUFFIX,photos.fife.usercontent.google.com,PROXY
+  - DOMAIN-SUFFIX,photosdata-pa.googleapis.com,PROXY
+  # Google Maps, Earth, Location (地图, 地球, 位置)
+  - DOMAIN-SUFFIX,agnss.goog,PROXY
+  - DOMAIN-SUFFIX,kh.google.com,PROXY
+  - DOMAIN-SUFFIX,maps-api-ssl.google.com,PROXY
+  - DOMAIN-SUFFIX,maps.googleapis.com,PROXY
+  - DOMAIN-SUFFIX,mapsmobilesdks-pa.googleapis.com,PROXY
+  - DOMAIN-SUFFIX,mt0.google.com,PROXY
+  - DOMAIN-SUFFIX,mw1.google.com,PROXY
+  - DOMAIN-SUFFIX,nearbysharing-pa.googleapis.com,PROXY
+  - DOMAIN-SUFFIX,pixelweatherhub-pa.googleapis.com,PROXY
+  - DOMAIN-SUFFIX,places.googleapis.com,PROXY
+  - DOMAIN-SUFFIX,semanticlocation-pa.googleapis.com,PROXY
+  - DOMAIN-SUFFIX,userlocation.googleapis.com,PROXY
+  - DOMAIN-SUFFIX,earth.google.com,PROXY
+  - DOMAIN-SUFFIX,earth-pa.clients6.google.com,PROXY
+  - DOMAIN-SUFFIX,earthstudio.googleapis.com,PROXY
+  - DOMAIN-SUFFIX,geo3d.googleapis.com,PROXY
+  # Google Input & Speech (输入法 & 语音)
+  - DOMAIN-SUFFIX,dl.google.com,PROXY
+  - DOMAIN-SUFFIX,gboard-pa.googleapis.com,PROXY
+  - DOMAIN-SUFFIX,speech.googleapis.com,PROXY
+  - DOMAIN-SUFFIX,speechs3prot02-pa.googleapis.com,PROXY
+  - DOMAIN-SUFFIX,tenor.googleapis.com,PROXY
+  # Other Google Apps (其他谷歌应用)
+  - DOMAIN-SUFFIX,one.google.com,PROXY
+  - DOMAIN-SUFFIX,assistant.google.com,PROXY
+  - DOMAIN-SUFFIX,embeddedassistant.googleapis.com,PROXY
+  - DOMAIN-SUFFIX,jnn-pa.googleapis.com,PROXY
+  - DOMAIN-SUFFIX,keep.google.com,PROXY
+  - DOMAIN-SUFFIX,kidsmanagement-pa.googleapis.com,PROXY
+  - DOMAIN-SUFFIX,notes-pa.googleapis.com,PROXY
+  - DOMAIN-SUFFIX,translate.goog,PROXY
+  # --- AI Services ---
+  # Google AI (Gemini, Bard, DeepMind etc.)
+  - DOMAIN-SUFFIX,ai.google.com,PROXY
+  - DOMAIN-SUFFIX,ai.google.dev,PROXY
+  - DOMAIN-SUFFIX,ai.dev,PROXY
+  - DOMAIN-SUFFIX,antigravity.google,PROXY
+  - DOMAIN-KEYWORD,antigravity,PROXY
+  - DOMAIN-SUFFIX,appsgenaiserver-pa.clients6.google.com,PROXY
+  - DOMAIN-SUFFIX,appsgenaiserver-pa.googleapis.com,PROXY
+  - DOMAIN-SUFFIX,alkalicore-pa.clients6.google.com,PROXY
+  - DOMAIN-SUFFIX,bard.google.com,PROXY
+  - DOMAIN-SUFFIX,gemini.google.com,PROXY
+  # > Google Generative Language API
+  - DOMAIN-SUFFIX,generativelanguage.googleapis.com,PROXY
+  - DOMAIN-SUFFIX,geller-pa.googleapis.com,PROXY
+  - DOMAIN-SUFFIX,proactivebackend-pa.googleapis.com,PROXY
+  # > Google AI Studio
+  - DOMAIN-KEYWORD,alkalimakersuite-pa.clients6.google.com,PROXY
+  - DOMAIN-SUFFIX,aistudio.google.com,PROXY
+  - DOMAIN-SUFFIX,makersuite.google.com,PROXY
+  - DOMAIN-SUFFIX,generativeai.google,PROXY
+  - DOMAIN,ai.google.dev,PROXY
+  - DOMAIN,alkalicore-pa.clients6.google.com,PROXY
+  - DOMAIN,waa-pa.clients6.google.com,PROXY
+  # > Google NotebookLM
+  - DOMAIN-SUFFIX,notebooklm.google,PROXY
+  - DOMAIN-SUFFIX,notebooklm.google.com,PROXY
+  - DOMAIN-SUFFIX,deepmind.com,PROXY
+  - DOMAIN-SUFFIX,deepmind.google,PROXY
+  - DOMAIN-SUFFIX,notebooklm-pa.googleapis.com,PROXY
+  - DOMAIN-SUFFIX,cloud.google.com,PROXY
+  - DOMAIN-SUFFIX,cloudresourcemanager.googleapis.com,PROXY
+  - DOMAIN-SUFFIX,iam.googleapis.com,PROXY
+  - DOMAIN-SUFFIX,serviceusage.googleapis.com,PROXY
+  # Grok AI
+  - DOMAIN-KEYWORD,grok,PROXY
+  - DOMAIN-SUFFIX,grokipedia.com,PROXY
+  - DOMAIN-SUFFIX,x.ai,PROXY
+  - DOMAIN-SUFFIX,grok.com,PROXY
+  - DOMAIN-SUFFIX,assets.grok.com,PROXY
+  - DOMAIN-SUFFIX,ssff.grok.com,PROXY
+  - DOMAIN-SUFFIX,grokusercontent.com,PROXY
+  # cloudflare （grok会用到它们的服务）
+  - DOMAIN-SUFFIX,cloudflare.com,PROXY
+  - DOMAIN-SUFFIX,cloudflare.net,PROXY
+  - DOMAIN-SUFFIX,cloudflareinsights.com,PROXY
+  # Grok AI 可能用到的其他第三方域名
+  - DOMAIN-SUFFIX,featureassets.org,PROXY
+  - DOMAIN-SUFFIX,mixpanel.com,PROXY
+  # Other AI/ML
+  - DOMAIN-SUFFIX,espresso-pa.clients6.google.com,PROXY
+  - DOMAIN-SUFFIX,mobilemlaccelerationcompatibility.googleapis.com,PROXY
+  - DOMAIN-SUFFIX,readaloud.googleapis.com,PROXY
+  - DOMAIN-SUFFIX,taskassist-pa.clients6.google.com,PROXY
+  - DOMAIN-SUFFIX,taskassist-pa.googleapis.com,PROXY
+  # Manus AI agent
+  - DOMAIN-KEYWORD,manus,PROXY
+  - DOMAIN-SUFFIX,cloudfront.net,PROXY
+  - DOMAIN-KEYWORD,amplitude,PROXY
+  - DOMAIN-SUFFIX,amplitude.com,PROXY
+  - DOMAIN-SUFFIX,butterfly-effect.dev,PROXY
+  - DOMAIN-SUFFIX,plausible.io,PROXY
+  - DOMAIN-SUFFIX,gist.build,PROXY
+  # anthropic AI
+  - DOMAIN-SUFFIX,anthropic.com,PROXY
+  - DOMAIN-SUFFIX,claude.ai,PROXY
+  - DOMAIN-SUFFIX,claude.com,PROXY
+  - DOMAIN-SUFFIX,bridge.claudeusercontent.com,PROXY
+  - DOMAIN-SUFFIX,sanity.io,PROXY
+  - DOMAIN-SUFFIX,assets.claude.ai,PROXY
+  # OpenAI & ChatGPT (Epidemic Sound AI 语义搜歌 & ChatGPT 官方生态)
+  - DOMAIN-SUFFIX,openai.com,PROXY
+  - DOMAIN-SUFFIX,chatgpt.com,PROXY
+  - DOMAIN-SUFFIX,oaistatic.com,PROXY
+  - DOMAIN-SUFFIX,oaiusercontent.com,PROXY
+  # Epidemic Sound (免版税音乐与音效库 - 全套高速代理)
+  - DOMAIN-SUFFIX,epidemicsound.com,PROXY
+  - DOMAIN-SUFFIX,optimizely.com,PROXY
+  - DOMAIN-SUFFIX,contentful.com,PROXY
+  - DOMAIN-SUFFIX,recurly.com,PROXY
+  - DOMAIN-SUFFIX,sentry-cdn.com,PROXY
+  - DOMAIN-SUFFIX,cookiepro.com,PROXY
+  - DOMAIN-SUFFIX,gstatic.cn,PROXY
+  # > Google FCM
+  # According to Firebase FAQ https://firebase.google.com/docs/cloud-messaging/concept-options#messaging-ports-and-your-firewall
+  - DOMAIN,mtalk.google.com,PROXY
+  - DOMAIN,mtalk4.google.com,PROXY
+  - DOMAIN,mtalk-staging.google.com,PROXY
+  - DOMAIN,mtalk-dev.google.com,PROXY
+  - DOMAIN,alt1-mtalk.google.com,PROXY
+  - DOMAIN,alt2-mtalk.google.com,PROXY
+  - DOMAIN,alt3-mtalk.google.com,PROXY
+  - DOMAIN,alt4-mtalk.google.com,PROXY
+  - DOMAIN,alt5-mtalk.google.com,PROXY
+  - DOMAIN,alt6-mtalk.google.com,PROXY
+  - DOMAIN,alt7-mtalk.google.com,PROXY
+  - DOMAIN,alt8-mtalk.google.com,PROXY
+  - DOMAIN,android.apis.google.com,PROXY
+  - DOMAIN,device-provisioning.googleapis.com,PROXY
+  - DOMAIN,firebaseinstallations.googleapis.com,PROXY
+  - IP-CIDR,64.233.177.188/32,PROXY,no-resolve
+  - IP-CIDR,64.233.186.188/32,PROXY,no-resolve
+  - IP-CIDR,64.233.187.188/32,PROXY,no-resolve
+  - IP-CIDR,64.233.188.188/32,PROXY,no-resolve
+  - IP-CIDR,64.233.189.188/32,PROXY,no-resolve
+  - IP-CIDR,74.125.23.188/32,PROXY,no-resolve
+  - IP-CIDR,74.125.24.188/32,PROXY,no-resolve
+  - IP-CIDR,74.125.28.188/32,PROXY,no-resolve
+  - IP-CIDR,74.125.127.188/32,PROXY,no-resolve
+  - IP-CIDR,74.125.137.188/32,PROXY,no-resolve
+  - IP-CIDR,74.125.203.188/32,PROXY,no-resolve
+  - IP-CIDR,74.125.204.188/32,PROXY,no-resolve
+  - IP-CIDR,74.125.206.188/32,PROXY,no-resolve
+  - IP-CIDR,108.177.125.188/32,PROXY,no-resolve
+  - IP-CIDR,142.250.4.188/32,PROXY,no-resolve
+  - IP-CIDR,142.250.10.188/32,PROXY,no-resolve
+  - IP-CIDR,142.250.31.188/32,PROXY,no-resolve
+  - IP-CIDR,142.250.96.188/32,PROXY,no-resolve
+  - IP-CIDR,172.217.194.188/32,PROXY,no-resolve
+  - IP-CIDR,172.217.218.188/32,PROXY,no-resolve
+  - IP-CIDR,172.217.219.188/32,PROXY,no-resolve
+  - IP-CIDR,172.253.63.188/32,PROXY,no-resolve
+  - IP-CIDR,172.253.122.188/32,PROXY,no-resolve
+  - IP-CIDR,173.194.175.188/32,PROXY,no-resolve
+  - IP-CIDR,173.194.218.188/32,PROXY,no-resolve
+  - IP-CIDR,209.85.233.188/32,PROXY,no-resolve
+  # --- Third-Party Services ---
+  # Figma
+  - DOMAIN-SUFFIX,figma.com,PROXY
+  - DOMAIN-SUFFIX,figma.net,PROXY
+  - DOMAIN-SUFFIX,figma.static.com,PROXY
+  - DOMAIN-SUFFIX,website-files.com,PROXY
+  # GitHub
+  - DOMAIN-SUFFIX,github.com,PROXY
+  - DOMAIN-SUFFIX,githubusercontent.com,PROXY
+  - DOMAIN-SUFFIX,gh-proxy.org,PROXY
+  - DOMAIN-SUFFIX,jetbrains.com,PROXY
+  - DOMAIN-SUFFIX,stackoverflow.com,PROXY
+  # --- Developer Tools (Python, FastAPI, Android) ---
+  # Python (PyPI & Conda)
+  - DOMAIN-SUFFIX,pypi.org,PROXY
+  - DOMAIN-SUFFIX,pythonhosted.org,PROXY
+  - DOMAIN-SUFFIX,files.pythonhosted.org,PROXY
+  - DOMAIN-SUFFIX,anaconda.com,PROXY
+  - DOMAIN-SUFFIX,conda.io,PROXY
+  # Android & Gradle
+  - DOMAIN-SUFFIX,android.com,PROXY
+  - DOMAIN-SUFFIX,maven.org,PROXY
+  - DOMAIN-SUFFIX,jitpack.io,PROXY
+  - DOMAIN-SUFFIX,gradle.org,PROXY
+  - DOMAIN-SUFFIX,services.gradle.org,PROXY
+  # FastAPI & Backend
+  - DOMAIN-SUFFIX,tiangolo.com,PROXY
+  - DOMAIN-SUFFIX,uvicorn.org,PROXY
+  - DOMAIN-SUFFIX,pydantic.dev,PROXY
+  - DOMAIN-SUFFIX,docker.com,PROXY
+  - DOMAIN-SUFFIX,docker.io,PROXY
+  - DOMAIN-SUFFIX,swagger.io,PROXY
+  # Flutter & Dart
+  - DOMAIN-SUFFIX,pub.dev,PROXY
+  - DOMAIN-SUFFIX,flutter.dev,PROXY
+  - DOMAIN-SUFFIX,dart.dev,PROXY
+  # Notion
+  - DOMAIN-SUFFIX,splunkcloud.com,PROXY
+  - DOMAIN-SUFFIX,api.statsig.com,PROXY
+  - DOMAIN-SUFFIX,code.gist.build,PROXY
+  - DOMAIN-SUFFIX,desktop-release.notion-static.com,PROXY
+  - DOMAIN-SUFFIX,exp.notion.so,PROXY
+  - DOMAIN-SUFFIX,identity.notion.so,PROXY
+  - DOMAIN-SUFFIX,img.notionusercontent.com,PROXY
+  - DOMAIN-SUFFIX,msgstore.www.notion.so,PROXY
+  - DOMAIN-SUFFIX,notion.com,PROXY
+  - DOMAIN-SUFFIX,notion.so,PROXY
+  - DOMAIN-SUFFIX,statsigapi.net,PROXY
+  - DOMAIN-SUFFIX,http-inputs-notion.splunkcloud.com,PROXY
+  - DOMAIN-KEYWORD,sentry.io,PROXY
+  - DOMAIN-SUFFIX,track.customer.io,PROXY
+  - DOMAIN-SUFFIX,prodregistryv2.org,PROXY
+  - DOMAIN-KEYWORD,standsapp.org,PROXY
+  - DOMAIN-SUFFIX,vimeo.com,PROXY
+  - DOMAIN-SUFFIX,vimeocdn.com,PROXY
+  # Analytics (分析)
+  - DOMAIN-SUFFIX,analytics.google.com,PROXY
+  - DOMAIN-SUFFIX,app-measurement.com,PROXY
+  - DOMAIN-SUFFIX,ssl.google-analytics.com,PROXY
+  - DOMAIN-SUFFIX,google-analytics.com,PROXY
+  - DOMAIN-SUFFIX,gravatar.com,PROXY
+  - DOMAIN-KEYWORD,datadoghq,PROXY
+  # 公共资源 CDN (Figma & Claude 依赖)
+  - DOMAIN-SUFFIX,unpkg.com,PROXY
+  - DOMAIN-SUFFIX,jsdelivr.net,PROXY
+  # General Fallback (通用后备)
+  - DOMAIN-KEYWORD,google.com.,PROXY  # 确保所有国家的Google域名都可以访问，比如台湾 google.com.tw
+  - DOMAIN-SUFFIX,google.com,PROXY
+  # --- 补充 Google CDN ---
+  - DOMAIN-SUFFIX,gvt1.com,PROXY
+  - DOMAIN-SUFFIX,gvt2.com,PROXY
+  - DOMAIN-SUFFIX,gvt3.com,PROXY
+  # 谷歌安全浏览（Safe Browsing）服务
+  - DOMAIN-SUFFIX,fastly-edge.com,PROXY
+  # 谷歌证书服务
+  - DOMAIN-SUFFIX,pki.goog,PROXY
+  # 字幕下载 subtitle downloader
+  - DOMAIN-KEYWORD,downsub,PROXY
+  - DOMAIN-KEYWORD,subtitle,PROXY
+  # ==========================================================
+  # --- Microsoft, Office 365, OneDrive & OneNote (全套走 PROXY) ---
+  # ==========================================================
+  # 1. Microsoft 核心、账号认证与专属顶级域 (Core, Identity & gTLD)
+  - DOMAIN-SUFFIX,microsoft,PROXY  # 覆盖所有 *.microsoft 专属顶级域 (cloud.microsoft / static.microsoft 等)
+  - DOMAIN-SUFFIX,microsoft.com,PROXY  # 覆盖所有 *.microsoft.com (login / account / graph / data / update 等)
+  - DOMAIN-SUFFIX,microsoftonline.com,PROXY
+  - DOMAIN-SUFFIX,microsoftonline-p.com,PROXY
+  - DOMAIN-SUFFIX,microsoftonline-p.net,PROXY
+  - DOMAIN-SUFFIX,microsoftpersonalcontent.com,PROXY
+  - DOMAIN-SUFFIX,microsoftstore.com,PROXY
+  - DOMAIN-SUFFIX,msidentity.com,PROXY
+  - DOMAIN-SUFFIX,msftidentity.com,PROXY
+  - DOMAIN-SUFFIX,msauth.net,PROXY
+  - DOMAIN-SUFFIX,msftauth.net,PROXY
+  - DOMAIN-SUFFIX,msauthimages.net,PROXY
+  - DOMAIN-SUFFIX,msftauthimages.net,PROXY
+  # 2. Office 365, OneNote & OneDrive 生态 (Office, OneNote & OneDrive Sync)
+  - DOMAIN-SUFFIX,office.com,PROXY
+  - DOMAIN-SUFFIX,office365.com,PROXY
+  - DOMAIN-SUFFIX,office.net,PROXY
+  - DOMAIN-SUFFIX,outlook.com,PROXY  # 覆盖所有 *.outlook.com (Sticky Notes 便签同步的核心数据存储宿主)
+  - DOMAIN-SUFFIX,onenote.com,PROXY
+  - DOMAIN-SUFFIX,onenote.net,PROXY
+  - DOMAIN-SUFFIX,onedrive.com,PROXY
+  - DOMAIN-SUFFIX,sharepoint.com,PROXY
+  - DOMAIN-SUFFIX,sharepointonline.com,PROXY
+  - DOMAIN-SUFFIX,1drv.ms,PROXY
+  - DOMAIN-SUFFIX,1drv.com,PROXY
+  - DOMAIN-SUFFIX,livefilestore.com,PROXY  # OneDrive/OneNote 真实文件传输与笔记图片附件 CDN
+  - DOMAIN-SUFFIX,skydrive.com,PROXY  # 微软旧版同步 API 及部分重定向接口
+  # 3. Microsoft Copilot & SSO (单点登录与智能助手)
+  - DOMAIN-SUFFIX,copilot.com,PROXY  # 覆盖 ms-sso.copilot.com, copilot.com, api.copilot.com
+  # 4. Live 账号体系与 Windows 云服务 (Live & Windows Ecosystem)
+  - DOMAIN-SUFFIX,live.com,PROXY  # 覆盖所有 *.live.com (login / storage / officeapps / to-do 等)
+  - DOMAIN-SUFFIX,live.net,PROXY  # 覆盖所有 *.live.net (docs.live.net 等)
+  - DOMAIN-SUFFIX,windows.com,PROXY  # 覆盖所有 *.windows.com (wns / activity 等)
+  - DOMAIN-SUFFIX,windows.net,PROXY  # 覆盖所有 *.windows.net (blob.core.windows.net 等)
+  - DOMAIN-SUFFIX,windowsupdate.com,PROXY
+  - DOMAIN-SUFFIX,msn.com,PROXY
+  - DOMAIN-SUFFIX,msftncsi.com,PROXY
+  - DOMAIN-SUFFIX,msftconnecttest.com,PROXY
+  # 5. Azure, Skype, 关键策略与基础网络 (Azure, Skype, Policy & CDN)
+  - DOMAIN-SUFFIX,azure.com,PROXY
+  - DOMAIN-SUFFIX,azure.net,PROXY
+  - DOMAIN-SUFFIX,azureedge.net,PROXY
+  - DOMAIN-SUFFIX,azureedge.us,PROXY
+  - DOMAIN-SUFFIX,azurefd.net,PROXY
+  - DOMAIN-SUFFIX,msedge.net,PROXY
+  - DOMAIN-SUFFIX,skype.com,PROXY
+  - DOMAIN-SUFFIX,skypeassets.com,PROXY
+  - DOMAIN-SUFFIX,exp-tas.com,PROXY  # 微软 TAS 关键实验与策略分发服务 (解决 OneNote 鉴权与脱机)
+  - DOMAIN-SUFFIX,appcenter.ms,PROXY
+  - DOMAIN-SUFFIX,sfx.ms,PROXY
+  - DOMAIN-SUFFIX,svc.ms,PROXY
+  - DOMAIN-SUFFIX,gfx.ms,PROXY
+  - DOMAIN-SUFFIX,aka.ms,PROXY  # 微软官方短链服务 (App 内帮助、鉴权协议跳转)
+  - DOMAIN-SUFFIX,msecnd.net,PROXY
+  - DOMAIN-SUFFIX,msocdn.com,PROXY
+  - DOMAIN-SUFFIX,aspnetcdn.com,PROXY  # 微软官方前端静态资源 CDN (部分 Webview 登录页需要)
+  - DOMAIN-SUFFIX,nelreports.net,PROXY
+  - DOMAIN-SUFFIX,footprintdns.com,PROXY
+  - DOMAIN-SUFFIX,spoprod-a.akamaihd.net,PROXY  # SharePoint Akamai 专用 CDN
+  # Google IP Ranges (Google 核心 IP 网段兜底，放在最末以避免对域名请求触发不必要的 DNS 解析)
+  - IP-CIDR,172.217.0.0/16,PROXY,no-resolve  # 解决日志中被拦截的 172.217.11x.4 等 IP
+  - IP-CIDR,142.250.0.0/15,PROXY,no-resolve  # Google 最常用的核心 API/服务 IP 网段
+  - IP-CIDR,216.58.192.0/19,PROXY,no-resolve  # Google 常用服务网段
+  - IP-CIDR,173.194.0.0/16,PROXY,no-resolve  # Google 常用服务网段
+
+  # ==========================================================
+  # Final Layer: Final Block (Matches Sing-box final: block)
+  # ==========================================================
+  - MATCH,REJECT
