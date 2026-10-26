@@ -44,7 +44,7 @@ payload:
   - DOMAIN-SUFFIX,eascdn.net         # Expo EAS Build/Update CDN（构建产物与OTA更新）
   - DOMAIN-SUFFIX,supabase.com
   - DOMAIN-SUFFIX,supabase.co
-  - DOMAIN-SUFFIX,googleapis.com       # 含 safebrowsing.googleapis.com（已覆盖）
+  - DOMAIN-SUFFIX,safebrowsing.googleapis.com  # 仅放行安全浏览 API，避免宽泛放行覆盖黑名单中的 youtubei/play 等
   - DOMAIN-SUFFIX,gstatic.com
   - DOMAIN-SUFFIX,dl.google.com        # Google 下载服务（Android SDK、Chrome 等）
   - DOMAIN-SUFFIX,goog.com             # Google 短域名（如 antigravity-unleash.goog）
