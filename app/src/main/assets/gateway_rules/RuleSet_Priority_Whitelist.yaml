@@ -2,6 +2,15 @@ payload:
   # ==========================================================
   # RuleSet for Priority Whitelist (高优先级白名单)
   # ==========================================================
+  # --- IP & Geolocation Detection Services (客户端公网 IP 位置检测服务，置顶以确保最高优放行) ---
+  - DOMAIN-SUFFIX,ip-api.com
+  - DOMAIN-SUFFIX,ipinfo.io
+  - DOMAIN-SUFFIX,ip.sb
+  - DOMAIN-SUFFIX,ipwho.is
+  - DOMAIN-SUFFIX,myip.com
+  - DOMAIN-SUFFIX,ipapi.co
+  - DOMAIN-SUFFIX,ident.me
+
   # 逻辑：此规则集先于 Blacklist 匹配。
   # 用于放行那些被 Blacklist 广谱拦截但仍需使用的特定子域名。
   # 例如：Blacklist 拦截了 youtube.com，此处放行 accounts.youtube.com 以确保登录正常。

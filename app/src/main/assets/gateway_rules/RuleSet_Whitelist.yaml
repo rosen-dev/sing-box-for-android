@@ -452,15 +452,6 @@ payload:
   - DOMAIN-SUFFIX,footprintdns.com
   - DOMAIN-SUFFIX,spoprod-a.akamaihd.net  # SharePoint Akamai 专用 CDN
 
-  # --- IP & Geolocation Detection Services (客户端公网 IP 位置检测服务) ---
-  - DOMAIN-SUFFIX,ip-api.com
-  - DOMAIN-SUFFIX,ipinfo.io
-  - DOMAIN-SUFFIX,ip.sb
-  - DOMAIN-SUFFIX,ipwho.is
-  - DOMAIN-SUFFIX,myip.com
-  - DOMAIN-SUFFIX,ipapi.co
-  - DOMAIN-SUFFIX,ident.me
-
 
 
   # Google IP Ranges (Google 核心 IP 网段兜底，放在最末以避免对域名请求触发不必要的 DNS 解析)
