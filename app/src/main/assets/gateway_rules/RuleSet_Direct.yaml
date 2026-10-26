@@ -47,6 +47,14 @@ payload:
   - DOMAIN-SUFFIX,tenpay.com
   - DOMAIN,api.mch.weixin.qq.com
 
+  # Alibaba E-Commerce & Security (阿里巴巴 / 淘宝 / 天猫 / 安全风控与静态CDN)
+  - DOMAIN-SUFFIX,taobao.com
+  - DOMAIN-SUFFIX,tmall.com
+  - DOMAIN-SUFFIX,tmall.hk
+  - DOMAIN-SUFFIX,alicdn.com
+  - DOMAIN-SUFFIX,alibaba.com
+  - DOMAIN-SUFFIX,aliapp.org
+
   # Memfire (国内 Supabase 替代)
   - DOMAIN-SUFFIX,memfiredb.com
   - DOMAIN-SUFFIX,memfire.com
