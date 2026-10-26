@@ -235,6 +235,13 @@ object ConfigGenerator {
             put("outbound", GatewayConstants.TAG_DIRECT)
         })
 
+        // 0.6 拦截 QUIC (UDP 443)，促使客户端秒级回退至极度稳定的 TCP TLS 协议栈
+        rules.put(JSONObject().apply {
+            put("network", "udp")
+            put("port", JSONArray().put(443))
+            put("action", "reject")
+        })
+
         // 1. 特定设备过滤规则 (192.168.10.50 + googlevideo.com -> reject)
         rules.put(JSONObject().apply {
             put("type", "logical")
